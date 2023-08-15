@@ -25,12 +25,22 @@ async function run() {
     await client.connect();
 
     const userCollection = client.db('flexFlow').collection('users');
+    const moviesCollection = client.db('flexFlow').collection('movies');
+
+    //  movies  section
+
+    app.get('/movies', async (req, res) => {
+      const cursor = moviesCollection.find();
+      const result = await cursor.toArray();
+      res.send(result)
+    })
+
 
 
     app.get('/users', async (req, res) => {
-        const cursor = userCollection.find();
-        const result = await cursor.toArray();
-        res.send(result)
+      const cursor = userCollection.find();
+      const result = await cursor.toArray();
+      res.send(result)
     })
 
 
@@ -41,7 +51,7 @@ async function run() {
 
 
 
-    
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -56,9 +66,9 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('Hellow World')
+  res.send('Hellow World')
 })
 
 app.listen(port, () => {
-    console.log(`port is running on ${port}`);
+  console.log(`port is running on ${port}`);
 })
