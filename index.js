@@ -5,10 +5,15 @@ const app = express()
 const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
+const stripe = require("stripe")(`${process.env.stipe_key}`);
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
+
+// const uri = `mongodb://127.0.0.1:27017`;
+
+
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -27,7 +32,7 @@ async function run() {
     const userCollection = client.db('flexFlow').collection('users');
     const moviesCollection = client.db('flexFlow').collection('movies');
 
-    
+
 
 
     //users
@@ -62,7 +67,30 @@ async function run() {
       const result = await userCollection.insertOne(movie);
       res.send(result)
     })
-    
+
+
+    // payment system implement
+    app.get('/create-payment-intent', async (req, res) => {
+      // const { price } = req.body;
+      // remove this when original payment is available
+      const price = Math.floor(Math.random(100) * 100);
+      const amount = price * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ["card"]
+      })
+      // console.log(amount);
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    })
+
+    // payment complete data insert
+    app.post("/payment", async (req, res) => {
+
+    })
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
