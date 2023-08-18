@@ -6,19 +6,13 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-const stripe = require("stripe")(`${process.env.stipe_key}`);
+const stripe = require("stripe")(`${process.env.STRIPE_KEY}`);
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
-
-const uri = `mongodb://127.0.0.1:27017`;
-
-
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://127.0.0.1:27017`;
-
-
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
