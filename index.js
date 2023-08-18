@@ -69,28 +69,6 @@ async function run() {
     })
 
 
-    // payment system implement
-    app.get('/create-payment-intent', async (req, res) => {
-      // const { price } = req.body;
-      // remove this when original payment is available
-      const price = Math.floor(Math.random(100) * 100);
-      const amount = price * 100;
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: 'usd',
-        payment_method_types: ["card"]
-      })
-      // console.log(amount);
-      res.send({
-        clientSecret: paymentIntent.client_secret
-      })
-    })
-
-    // payment complete data insert
-    app.post("/payment", async (req, res) => {
-
-    })
-
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
