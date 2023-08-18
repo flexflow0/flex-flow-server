@@ -5,12 +5,16 @@ const app = express()
 const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
-// const stripe = require("stripe")(`${process.env.stipe_key}`);
-const stripe = require("stripe")(`sk_test_51NEwMYLtOU21zLJnDZFiUe1ytwhhGUaLnT70CFZ95P9r7eMUetqMEphbzL9q0gdiTm4Wz6w0sE00bURmGOvQa0qb00e3B2f8jB`);
+
+const stripe = require("stripe")(`${process.env.stipe_key}`);
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
+
+const uri = `mongodb://127.0.0.1:27017`;
+
+
 
 // const uri = `mongodb://127.0.0.1:27017`;
 
@@ -70,6 +74,7 @@ async function run() {
     })
 
 
+
     // payment system implement
     app.get('/create-payment-intent', async (req, res) => {
       // const { price } = req.body;
@@ -91,6 +96,7 @@ async function run() {
     app.post("/payment", async (req, res) => {
 
     })
+
 
 
     // Send a ping to confirm a successful connection
