@@ -5,7 +5,8 @@ const app = express()
 const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
-const stripe = require("stripe")(`${process.env.stipe_key}`);
+// const stripe = require("stripe")(`${process.env.stipe_key}`);
+const stripe = require("stripe")(`sk_test_51NEwMYLtOU21zLJnDZFiUe1ytwhhGUaLnT70CFZ95P9r7eMUetqMEphbzL9q0gdiTm4Wz6w0sE00bURmGOvQa0qb00e3B2f8jB`);
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
