@@ -31,9 +31,6 @@ async function run() {
     const userCollection = client.db('flexFlow').collection('users');
     const moviesCollection = client.db('flexFlow').collection('movies');
 
-
-
-
     //users
     app.get('/users', async (req, res) => {
       const cursor = userCollection.find();
@@ -53,11 +50,17 @@ async function run() {
       res.send(result)
     })
 
-    //  movies  section
-
+    //  movies section
     app.get('/movies', async (req, res) => {
       const cursor = moviesCollection.find();
       const result = await cursor.toArray();
+      res.send(result)
+    })
+
+    app.get('/movies/:category', async (req, res) => {
+      const category = req.params.category;
+      const query = { "Genres": category };
+      const result = await moviesCollection.find(query).toArray();
       res.send(result)
     })
 
