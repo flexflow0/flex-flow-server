@@ -56,16 +56,16 @@ async function run() {
       const region = queries.region;
       const genre = queries.genre;
       let query = {};
-      if (region === 'undefined') {
+      if (region === 'undefined' && genre === 'undefined'){
+        query = {};
+      }
+      else if (region === 'undefined') {
         query = { "Genres": genre };
         console.log(query, 1);
       }
       else if (genre === 'undefined') {
         query = { "region": region };
         console.log(query, 2);
-      }
-      else {
-        query = {};
       }
       // console.log(query);
       const result = await moviesCollection.find(query).toArray();
@@ -99,8 +99,6 @@ async function run() {
     app.post("/payment", async (req, res) => {
 
     })
-
-
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
