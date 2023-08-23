@@ -52,14 +52,22 @@ async function run() {
 
     //  movies section
     app.get('/movies', async (req, res) => {
-      const cursor = moviesCollection.find();
-      const result = await cursor.toArray();
-      res.send(result)
-    })
-
-    app.get('/movies/:category', async (req, res) => {
-      const category = req.params.category;
-      const query = { "Genres": category };
+      const queries = req.query;
+      const region = queries.region;
+      const genre = queries.genre;
+      let query = {};
+      if (region === 'undefined' && genre === 'undefined'){
+        query = {};
+      }
+      else if (region === 'undefined') {
+        query = { "Genres": genre };
+        console.log(query, 1);
+      }
+      else if (genre === 'undefined') {
+        query = { "region": region };
+        console.log(query, 2);
+      }
+      // console.log(query);
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
     })
@@ -69,8 +77,6 @@ async function run() {
       const result = await userCollection.insertOne(movie);
       res.send(result)
     })
-
-
 
     // payment system implement
     app.get('/create-payment-intent', async (req, res) => {
@@ -93,8 +99,6 @@ async function run() {
     app.post("/payment", async (req, res) => {
 
     })
-
-
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
