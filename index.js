@@ -1,6 +1,8 @@
 const express = require('express')
 const cors = require('cors')
 require('dotenv').config()
+const SSLCommerzPayment = require('sslcommerz-lts')
+
 const app = express()
 const port = process.env.PORT || 5000;
 app.use(cors());
@@ -23,6 +25,12 @@ const client = new MongoClient(uri, {
   }
 });
 
+
+const store_id = process.env.StoreID
+const store_passwd = `${process.env.StorePassword}`
+const is_live = false //true for live, false for sandbox
+
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -30,6 +38,7 @@ async function run() {
 
     const userCollection = client.db('flexFlow').collection('users');
     const moviesCollection = client.db('flexFlow').collection('movies');
+    const paymentCollection = client.db('flexFlow').collection('payment');
 
     //users
     app.get('/users', async (req, res) => {
@@ -56,7 +65,7 @@ async function run() {
       const region = queries.region;
       const genre = queries.genre;
       let query = {};
-      if (region === 'undefined' && genre === 'undefined'){
+      if (region === 'undefined' && genre === 'undefined') {
         query = {};
       }
       else if (region === 'undefined') {
@@ -79,10 +88,11 @@ async function run() {
     })
 
     // payment system implement
-    app.get('/create-payment-intent', async (req, res) => {
-      // const { price } = req.body;
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      console.log(price);
       // remove this when original payment is available
-      const price = Math.floor(Math.random(100) * 100);
+      // const price = Math.floor(Math.random(100) * 100);
       const amount = price * 100;
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
@@ -96,8 +106,56 @@ async function run() {
     })
 
     // payment complete data insert
-    app.post("/payment", async (req, res) => {
+    app.post("/payment-stripe", async (req, res) => {
+      const payment = req.body
+      const result = await paymentCollection.insertOne(payment)
+      res.send(result)
 
+    })
+
+
+    const transactionID = new ObjectId().toString()
+    //sslcommerz init
+    app.post('/ssl-payment', async (req, res) => {
+      const paymentInfo = req.body
+      const data = {
+        total_amount: paymentInfo?.price,
+        currency: paymentInfo?.currency,
+        tran_id: transactionID, // use unique tran_id for each api call
+        success_url: 'http://localhost:3030/success',
+        fail_url: 'http://localhost:3030/fail',
+        cancel_url: 'http://localhost:3030/cancel',
+        ipn_url: 'http://localhost:3030/ipn',
+        shipping_method: 'Courier',
+        product_name: paymentInfo?.plan,
+        product_category: 'Subscription',
+        product_profile: 'FlexFlow',
+        cus_name: paymentInfo?.name,
+        cus_email: paymentInfo?.email,
+        cus_add1: 'Dhaka',
+        cus_add2: 'Dhaka',
+        cus_city: 'Dhaka',
+        cus_state: 'Dhaka',
+        cus_postcode: '1000',
+        cus_country: 'Bangladesh',
+        cus_phone: paymentInfo?.number,
+        cus_fax: '01711111111',
+        ship_name: 'Customer Name',
+        ship_add1: 'Dhaka',
+        ship_add2: 'Dhaka',
+        ship_city: 'Dhaka',
+        ship_state: 'Dhaka',
+        ship_postcode: 1000,
+        ship_country: 'Bangladesh',
+      };
+      console.log(data);
+      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
+      sslcz.init(data).then(apiResponse => {
+        // Redirect the user to payment gateway
+        let GatewayPageURL = apiResponse.GatewayPageURL
+        res.send({ url: GatewayPageURL })
+        console.log('Redirecting to: ', GatewayPageURL)
+      });
     })
 
     // Send a ping to confirm a successful connection
@@ -114,7 +172,7 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-  res.send('Hellow World')
+  res.send('Hello World')
 })
 
 app.listen(port, () => {
