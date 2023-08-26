@@ -39,6 +39,7 @@ async function run() {
     const userCollection = client.db('flexFlow').collection('users');
     const moviesCollection = client.db('flexFlow').collection('movies');
     const paymentCollection = client.db('flexFlow').collection('payment');
+    const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
 
     //users
     app.get('/users', async (req, res) => {
@@ -122,9 +123,9 @@ async function run() {
         total_amount: paymentInfo?.price,
         currency: paymentInfo?.currency,
         tran_id: transactionID, // use unique tran_id for each api call
-        success_url: 'http://localhost:3030/success',
-        fail_url: 'http://localhost:3030/fail',
-        cancel_url: 'http://localhost:3030/cancel',
+        success_url: `http://localhost:5000/payment/success/${transactionID}`,
+        fail_url: `http://localhost:5000/payment/failed/${transactionID}`,
+        cancel_url: `http://localhost:5000/payment/failed/${transactionID}`,
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
         product_name: paymentInfo?.plan,
@@ -148,16 +149,55 @@ async function run() {
         ship_postcode: 1000,
         ship_country: 'Bangladesh',
       };
-      console.log(data);
+
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
       sslcz.init(data).then(apiResponse => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL
         res.send({ url: GatewayPageURL })
+
+        const finalOrder = {
+          paymentInfo, paidStatus: false, transactionID, paymentMethod: "SSLCommerz"
+        }
+        const result = SSLPaymentQuery.insertOne(finalOrder)
         console.log('Redirecting to: ', GatewayPageURL)
       });
-    })
 
+
+    })
+    app.post("/payment/success/:transactionID", async (req, res) => {
+      const updateQuery = await SSLPaymentQuery.updateOne({ transactionID: req.params.transactionID }, {
+        $set: {
+          paidStatus: true
+        }
+      })
+      console.log("1", updateQuery);
+      if (updateQuery.modifiedCount > 0) {
+        const getPayment = await SSLPaymentQuery.findOne({ transactionID: req.params.transactionID })
+        console.log("2", getPayment);
+        if (getPayment) {
+          const result = await paymentCollection.insertOne(getPayment)
+          console.log("3", result);
+          if (result.insertedId) {
+            const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID })
+            console.log("4", removeSSLQ);
+            if (removeSSLQ.deletedCount > 0) {
+              res.redirect(`http://localhost:5173/payment/success/${req.params.transactionID}`)
+            }
+          }
+        }
+      }
+
+    });
+
+
+    app.post("/payment/failed/:transactionID", async (req, res) => {
+      const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID }
+      )
+      if (deleteQuery.deletedCount) {
+        res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionID}`)
+      }
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
