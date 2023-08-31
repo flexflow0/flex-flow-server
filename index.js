@@ -66,6 +66,7 @@ async function run() {
     const moviesCollection = client.db('flexFlow').collection('movies');
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
+    const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
 
 
     // -------- jwt ---------
@@ -106,7 +107,6 @@ app.get('/users/admin/:email', async(req, res)=>{
 
     //users
     app.get('/users', async (req, res) => {
-     
       const result = await userCollection.find().toArray();
       res.send(result)
     })
@@ -261,6 +261,24 @@ app.get('/users/admin/:email', async(req, res)=>{
         res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionID}`)
       }
     });
+
+
+    // Upcoming Movies => Masud Rana
+    app.get('/upcomingmovies', async (req, res) => {
+      const result = await upcomingmoviesCollection.find().toArray();
+      res.send(result)
+    })
+
+    // To Do Masud Rana
+
+    // app.post('/upcomingmovies', async (req, res) => {
+    //   const movie = req.body;
+    //   const result = await userCollection.insertOne(movie);
+    //   res.send(result)
+    // })
+
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
