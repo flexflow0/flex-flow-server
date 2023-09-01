@@ -81,6 +81,14 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/singleMovie/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await moviesCollection.findOne(query);
+      res.send(movie)
+    })
+
     app.post('/movies', async (req, res) => {
       const movie = req.body;
       const result = await userCollection.insertOne(movie);
@@ -167,9 +175,6 @@ async function run() {
   }
 }
 run().catch(console.dir);
-
-
-
 
 app.get('/', (req, res) => {
   res.send('Hello World')
