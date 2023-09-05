@@ -134,20 +134,45 @@ app.get('/users/admin/:email', async(req, res)=>{
       }
       else if (region === 'undefined') {
         query = { "Genres": genre };
-        console.log(query, 1);
+        // console.log(query, 1);
       }
       else if (genre === 'undefined') {
         query = { "region": region };
-        console.log(query, 2);
+        // console.log(query, 2);
       }
       // console.log(query);
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
     })
 
+    app.get('/similar_movies', async (req, res) => {
+      const genres = req.query.genres;
+      const arrayOfGenres = genres.split(',');
+      // console.log(genres.split(','));
+      let orQuery = [];
+      arrayOfGenres.forEach(function (genre) {
+        orQuery.push({ "Genres": genre });
+      });
+
+      // Combine the $or queries
+      let query = { $or: orQuery };
+      console.log(query);
+      const options = {
+        projection: { 
+          _id: 1, 
+          title: 1, 
+          type: 1,
+          IMDb_rating: 1,
+          poster: 1
+        },
+      };
+      const movie = await moviesCollection.find(query, options).toArray();
+      res.send(movie)
+    })
+
     app.get('/singleMovie/:id', async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+      // console.log(id);
       const query = { _id: new ObjectId(id) };
       const movie = await moviesCollection.findOne(query);
       res.send(movie)
