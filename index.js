@@ -14,16 +14,16 @@ const verifyJWT = (req, res, next) => {
   if (!authorization) {
     return res.status(401).send({ error: true, message: 'unauthorization access' });
   }
-// bearer token
-const token = authorization.split(' ')[1];
+  // bearer token
+  const token = authorization.split(' ')[1];
 
-jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
-  if(err){
-    return res.status(401).send({ error: true, message: 'unauthorization access' })
-  }
-  req.decoded = decoded;
-  next();
-})
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ error: true, message: 'unauthorization access' })
+    }
+    req.decoded = decoded;
+    next();
+  })
 
 }
 
@@ -77,33 +77,33 @@ async function run() {
 
       res.send({ token })
     })
-// ----------------------------------
+    // ----------------------------------
 
-// ----------verifyAdmin------------
-const verifyAdmin = async(req, res, next)=>{
-const email = req.decoded.email;
-const query = {email: email}
-const user = await userCollection.findOne(query);
-if(user?.role !== 'admin'){
-  return res.status(403).send({error: true, message: 'forbidden message'})
-}
-next();
-}
-
-
-
-
-app.get('/users/admin/:email', async(req, res)=>{
-  const email = req.params.email;
-
-  if(req.decoded.email !== email){
-      return res.send({ admin: false })
+    // ----------verifyAdmin------------
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email }
+      const user = await userCollection.findOne(query);
+      if (user?.role !== 'admin') {
+        return res.status(403).send({ error: true, message: 'forbidden message' })
+      }
+      next();
     }
-  const query = {email: email};
-  const user = await userCollection.findOne(query);
-  const result = {admin: user?.role === 'admin'}
-  res.send(result);
-})
+
+
+
+
+    app.get('/users/admin/:email', async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        return res.send({ admin: false })
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' }
+      res.send(result);
+    })
 
     //users
     app.get('/users', async (req, res) => {
@@ -123,6 +123,18 @@ app.get('/users/admin/:email', async(req, res)=>{
       res.send(result)
     })
 
+    app.patch('/users', async (req, res) => {
+
+      const upData = req.body
+      const query = { email: upData.email }
+      const result = await userCollection.updateOne(query, {
+        $set: {
+          age: upData.age
+        }
+      }, { upsert: true });
+      console.log(result);
+      res.send(result)
+    })
     //  movies section
     app.get('/movies', async (req, res) => {
       const queries = req.query;
