@@ -304,11 +304,11 @@ async function run() {
 
     // To Do Masud Rana
 
-    // app.post('/upcomingmovies', async (req, res) => {
-    //   const movie = req.body;
-    //   const result = await userCollection.insertOne(movie);
-    //   res.send(result)
-    // })
+    app.post('/upcomingmovies', async (req, res) => {
+      const movie = req.body;
+      const result = await userCollection.insertOne(movie);
+      res.send(result)
+    })
 
   //*********** */ blog ********
   app.get('/blog', async (req, res) => {
