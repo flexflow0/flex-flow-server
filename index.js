@@ -350,7 +350,7 @@ async function run() {
       res.send(result)
     })
 
-  //*********** */ blog ********
+  //*********** blog *** Masud Rana *****
   app.get('/blog', async (req, res) => {
     const result = await blogCollection.find().toArray();
     res.send(result)
