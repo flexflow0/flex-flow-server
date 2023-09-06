@@ -14,16 +14,16 @@ const verifyJWT = (req, res, next) => {
   if (!authorization) {
     return res.status(401).send({ error: true, message: 'unauthorization access' });
   }
-// bearer token
-const token = authorization.split(' ')[1];
+  // bearer token
+  const token = authorization.split(' ')[1];
 
-jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
-  if(err){
-    return res.status(401).send({ error: true, message: 'unauthorization access' })
-  }
-  req.decoded = decoded;
-  next();
-})
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ error: true, message: 'unauthorization access' })
+    }
+    req.decoded = decoded;
+    next();
+  })
 
 }
 
@@ -67,6 +67,8 @@ async function run() {
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
+    const blogCollection = client.db('flexFlow').collection('blog');
 
 
     // -------- jwt ---------
@@ -77,33 +79,33 @@ async function run() {
 
       res.send({ token })
     })
-// ----------------------------------
+    // ----------------------------------
 
-// ----------verifyAdmin------------
-const verifyAdmin = async(req, res, next)=>{
-const email = req.decoded.email;
-const query = {email: email}
-const user = await userCollection.findOne(query);
-if(user?.role !== 'admin'){
-  return res.status(403).send({error: true, message: 'forbidden message'})
-}
-next();
-}
-
-
-
-
-app.get('/users/admin/:email', async(req, res)=>{
-  const email = req.params.email;
-
-  if(req.decoded.email !== email){
-      return res.send({ admin: false })
+    // ----------verifyAdmin------------
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email }
+      const user = await userCollection.findOne(query);
+      if (user?.role !== 'admin') {
+        return res.status(403).send({ error: true, message: 'forbidden message' })
+      }
+      next();
     }
-  const query = {email: email};
-  const user = await userCollection.findOne(query);
-  const result = {admin: user?.role === 'admin'}
-  res.send(result);
-})
+
+
+
+
+    app.get('/users/admin/:email', async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        return res.send({ admin: false })
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' }
+      res.send(result);
+    })
 
     //users
     app.get('/users', async (req, res) => {
@@ -123,7 +125,8 @@ app.get('/users/admin/:email', async(req, res)=>{
       res.send(result)
     })
 
-    //  movies section
+    // ************** movies section  ***************
+    // Get movies
     app.get('/movies', async (req, res) => {
       const queries = req.query;
       const region = queries.region;
@@ -144,7 +147,7 @@ app.get('/users/admin/:email', async(req, res)=>{
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
     })
-
+    // Get Single Movies 
     app.get('/singleMovie/:id', async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -152,14 +155,38 @@ app.get('/users/admin/:email', async(req, res)=>{
       const movie = await moviesCollection.findOne(query);
       res.send(movie)
     })
-
+    // Post Movies
     app.post('/movies', async (req, res) => {
       const movie = req.body;
-      const result = await userCollection.insertOne(movie);
+      const result = await moviesCollection.insertOne(movie);
       res.send(result)
     })
 
-    // payment system implement
+    // ************  Tv Series       *******  Masud Rana *******
+
+    app.get('/tvSeries', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      let query = {};
+      if (region !== 'undefined') {
+        query = { "region": region };
+      }
+
+      const result = await tvSeriesCollection.find(query).toArray();
+      res.send(result)
+    })
+
+    app.post('/tvSeries', async (req, res) => {
+      const tvSeries = req.body;
+      const result = await tvSeriesCollection.insertOne(tvSeries)
+      res.send(result)
+    })
+
+
+
+
+
+    //******** payment system implement  *********
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       console.log(price);
@@ -285,7 +312,19 @@ app.get('/users/admin/:email', async(req, res)=>{
     //   res.send(result)
     // })
 
+  //*********** */ blog ********
+  app.get('/blog', async (req, res) => {
+    const result = await blogCollection.find().toArray();
+    res.send(result)
+  })
 
+  app.post('/blog', async(req, res)=>{
+    const blogItem = req.body;
+    const result = await blogCollection.insertOne(blogItem)
+    res.send(result)
+  })
+
+  // ***********
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
