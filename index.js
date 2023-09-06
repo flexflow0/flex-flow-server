@@ -67,6 +67,7 @@ async function run() {
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    const blogCollection = client.db('flexFlow').collection('blog');
 
 
     // -------- jwt ---------
@@ -277,6 +278,7 @@ app.get('/users/admin/:email', async(req, res)=>{
       res.send(result)
     })
 
+
     // To Do Masud Rana
 
     // app.post('/upcomingmovies', async (req, res) => {
@@ -285,6 +287,19 @@ app.get('/users/admin/:email', async(req, res)=>{
     //   res.send(result)
     // })
 
+
+    //Blog 
+
+    app.get('/blog', async (req, res) => {
+      const result = await blogCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/blog', async(req, res)=>{
+      const blogItem = req.body;
+      const result = await blogCollection.insertOne(blogItem)
+      res.send(result)
+    })
 
 
     // Send a ping to confirm a successful connection
