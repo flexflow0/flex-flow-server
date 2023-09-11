@@ -12,7 +12,7 @@ app.use(express.json());
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return res.status(401).send({ error: true, message: 'unauthorization access' });
+    return res.status(401).send({ error: true, message: 'unauthorized access' });
   }
   // bearer token
   const token = authorization.split(' ')[1];
@@ -66,7 +66,9 @@ async function run() {
     const moviesCollection = client.db('flexFlow').collection('movies');
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
-    const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    const upComingMoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
+    const blogCollection = client.db('flexFlow').collection('blog');
 
 
     // -------- jwt ---------
@@ -123,18 +125,6 @@ async function run() {
       res.send(result)
     })
 
-    app.patch('/users', async (req, res) => {
-
-      const upData = req.body
-      const query = { email: upData.email }
-      const result = await userCollection.updateOne(query, {
-        $set: {
-          age: upData.age
-        }
-      }, { upsert: true });
-      console.log(result);
-      res.send(result)
-    })
     //  movies section
     app.get('/movies', async (req, res) => {
       const queries = req.query;
@@ -156,7 +146,7 @@ async function run() {
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
     })
-
+    // Get Single Movies 
     app.get('/singleMovie/:id', async (req, res) => {
       const id = req.params.id;
       console.log(id);
@@ -164,14 +154,36 @@ async function run() {
       const movie = await moviesCollection.findOne(query);
       res.send(movie)
     })
-
+    // Post Movies
     app.post('/movies', async (req, res) => {
       const movie = req.body;
-      const result = await userCollection.insertOne(movie);
+      const result = await moviesCollection.insertOne(movie);
       res.send(result)
     })
 
-    // payment system implement
+    // ************  Tv Series       *******  Masud Rana *******
+
+    app.get('/tvSeries', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      let query = {};
+      if (region !== 'undefined') {
+        query = { "region": region };
+      }
+
+      const result = await tvSeriesCollection.find(query).toArray();
+      res.send(result)
+    })
+
+    app.post('/tvSeries', async (req, res) => {
+      const tvSeries = req.body;
+      const result = await tvSeriesCollection.insertOne(tvSeries)
+      res.send(result)
+    })
+
+
+
+    //******** payment system implement  *********
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       console.log(price);
@@ -285,19 +297,31 @@ async function run() {
 
     // Upcoming Movies => Masud Rana
     app.get('/upcomingmovies', async (req, res) => {
-      const result = await upcomingmoviesCollection.find().toArray();
+      const result = await upComingMoviesCollection.find().toArray();
       res.send(result)
     })
 
     // To Do Masud Rana
 
-    // app.post('/upcomingmovies', async (req, res) => {
-    //   const movie = req.body;
-    //   const result = await userCollection.insertOne(movie);
-    //   res.send(result)
-    // })
+    app.post('/upcomingmovies', async (req, res) => {
+      const movie = req.body;
+      const result = await userCollection.insertOne(movie);
+      res.send(result)
+    })
 
+    //*********** */ blog ********
+    app.get('/blog', async (req, res) => {
+      const result = await blogCollection.find().toArray();
+      res.send(result)
+    })
 
+    app.post('/blog', async (req, res) => {
+      const blogItem = req.body;
+      const result = await blogCollection.insertOne(blogItem)
+      res.send(result)
+    })
+
+    // ***********
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
