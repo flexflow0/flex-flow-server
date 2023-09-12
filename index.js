@@ -68,6 +68,7 @@ async function run() {
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const blogCollection = client.db('flexFlow').collection('blog');
+    const subscribeCollection = client.db('flexFlow').collection('subscribe');
 
 
     // -------- jwt ---------
@@ -337,6 +338,27 @@ async function run() {
       const result = await blogCollection.insertOne(blogItem)
       res.send(result)
     })
+
+     app.delete('/blog', async (req, res) => {
+            const id = req.query.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await blogCollection.deleteOne(query);
+            res.send(result)
+
+        })
+
+        // Subscribe 
+        app.get('/subscribe', async (req, res) => {
+          const result = await subscribeCollection.find().toArray();
+          res.send(result)
+        })
+
+        app.post('/subscribe', async(req, res)=>{
+          const addEmail = req.body;
+          console.log(addEmail);
+          const result = await subscribeCollection.insertOne(addEmail)
+          res.send(result)
+        })
 
 
     // Send a ping to confirm a successful connection
