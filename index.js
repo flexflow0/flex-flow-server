@@ -38,6 +38,7 @@ const stripe = require("stripe")(`${process.env.STRIPE_KEY}`);
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://127.0.0.1:27017`;
@@ -184,6 +185,20 @@ async function run() {
 
 
     //******** payment system implement  *********
+
+    // get user specific payment History
+    app.get("/payment-history", async (req, res) => {
+
+      const query = req.query
+      console.log(query);
+      if (query) {
+        const result = await paymentCollection.find(query).toArray()
+        console.log(result);
+        res.send(result)
+      }
+    })
+
+    // payment intent of stripe
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       console.log(price);
@@ -210,17 +225,17 @@ async function run() {
     })
 
 
-    const transactionID = new ObjectId().toString()
+    const transactionId = new ObjectId().toString()
     //sslcommerz init
     app.post('/ssl-payment', async (req, res) => {
       const paymentInfo = req.body
       const data = {
         total_amount: paymentInfo?.price,
         currency: paymentInfo?.currency,
-        tran_id: transactionID, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success/${transactionID}`,
-        fail_url: `http://localhost:5000/payment/failed/${transactionID}`,
-        cancel_url: `http://localhost:5000/payment/failed/${transactionID}`,
+        tran_id: transactionId, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success/${transactionId}`,
+        fail_url: `http://localhost:5000/payment/failed/${transactionId}`,
+        cancel_url: `http://localhost:5000/payment/failed/${transactionId}`,
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
         product_name: paymentInfo?.plan,
@@ -252,7 +267,7 @@ async function run() {
         res.send({ url: GatewayPageURL })
 
         const finalOrder = {
-          paymentInfo, paidStatus: false, transactionID, paymentMethod: "SSLCommerz"
+          ...paymentInfo, paidStatus: false, transactionId: transactionId, paymentMethod: "SSLCommerz"
         }
         const result = SSLPaymentQuery.insertOne(finalOrder)
         console.log('Redirecting to: ', GatewayPageURL)
@@ -260,24 +275,24 @@ async function run() {
 
 
     })
-    app.post("/payment/success/:transactionID", async (req, res) => {
-      const updateQuery = await SSLPaymentQuery.updateOne({ transactionID: req.params.transactionID }, {
+    app.post("/payment/success/:transactionId", async (req, res) => {
+      const updateQuery = await SSLPaymentQuery.updateOne({ transactionId: req.params.transactionId }, {
         $set: {
           paidStatus: true
         }
       })
       console.log("1", updateQuery);
       if (updateQuery.modifiedCount > 0) {
-        const getPayment = await SSLPaymentQuery.findOne({ transactionID: req.params.transactionID })
+        const getPayment = await SSLPaymentQuery.findOne({ transactionId: req.params.transactionId })
         console.log("2", getPayment);
         if (getPayment) {
           const result = await paymentCollection.insertOne(getPayment)
           console.log("3", result);
           if (result.insertedId) {
-            const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID })
+            const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId })
             console.log("4", removeSSLQ);
             if (removeSSLQ.deletedCount > 0) {
-              res.redirect(`http://localhost:5173/payment/success/${req.params.transactionID}`)
+              res.redirect(`http://localhost:5173/payment/success/${req.params.transactionId}`)
             }
           }
         }
@@ -286,13 +301,15 @@ async function run() {
     });
 
 
-    app.post("/payment/failed/:transactionID", async (req, res) => {
-      const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID }
+    app.post("/payment/failed/:transactionId", async (req, res) => {
+      const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId }
       )
       if (deleteQuery.deletedCount) {
-        res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionID}`)
+        res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionId}`)
       }
     });
+
+
 
 
     // Upcoming Movies => Masud Rana
