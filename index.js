@@ -67,6 +67,8 @@ async function run() {
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
+    const blogCollection = client.db('flexFlow').collection('blog');
 
     const blogCollection = client.db('flexFlow').collection('blog');
     const subscribeCollection = client.db('flexFlow').collection('subscribe');
@@ -96,9 +98,6 @@ async function run() {
       }
       next();
     }
-
-
-
 
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
@@ -154,6 +153,8 @@ async function run() {
       res.send(result)
     })
     //  movies section
+    // ************** movies section  ***************
+    // Get movies
 
     // ************** movies section  ***************
     // Get movies
@@ -272,6 +273,36 @@ async function run() {
     app.post('/movies', async (req, res) => {
       const movie = req.body;
       const result = await moviesCollection.insertOne(movie);
+            res.send(result)
+    })
+
+    // ************  Tv Series       *******  Masud Rana *******
+
+    app.get('/tvSeries', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      let query = {};
+      if (region !== 'undefined') {
+        query = { "region": region };
+      }
+      const result = await tvSeriesCollection.find(query).toArray();
+      res.send(result)
+    })
+
+    app.post('/tvSeries', async (req, res) => {
+      const tvSeries = req.body;
+      const result = await tvSeriesCollection.insertOne(tvSeries)
+      res.send(result)
+    })
+
+    app.get('/singleTvSeries/:id', async (req, res) => {
+      const id = req.params.id;
+      // console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await tvSeriesCollection.findOne(query);
+      res.send(movie)
+    })
+    
       res.send(result)
     })
 
@@ -401,6 +432,11 @@ async function run() {
     })
   })
 
+//     app.get('/payment', async (req, res) => {
+//       const result = await paymentCollection.find().toArray();
+//       res.send(result)
+//     })
+
   // payment complete data insert
   app.post("/payment-stripe", async (req, res) => {
     const payment = req.body
@@ -512,8 +548,26 @@ async function run() {
 
     //*********** */ blog ********
 
+    app.post('/upcomingmovies', async (req, res) => {
+      const movie = req.body;
+      const result = await userCollection.insertOne(movie);
+      res.send(result)
+    })
+
+  //*********** blog *** Masud Rana *****
+  app.get('/blog', async (req, res) => {
+    const result = await blogCollection.find().toArray();
+    res.send(result)
+  })
 
 
+  app.post('/blog', async(req, res)=>{
+    const blogItem = req.body;
+    const result = await blogCollection.insertOne(blogItem)
+    res.send(result)
+  })
+
+  // ***********
     //Blog 
 
     app.get('/blog', async (req, res) => {
