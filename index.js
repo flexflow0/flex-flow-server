@@ -67,13 +67,10 @@ async function run() {
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
-
     const blogCollection = client.db('flexFlow').collection('blog');
     const subscribeCollection = client.db('flexFlow').collection('subscribe');
-
     const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
-
-
+    const watchLaterMovieCollection = client.db("flexFlow").collection("watchLaterMovies");
 
 
     // -------- jwt ---------
@@ -416,6 +413,30 @@ async function run() {
       res.send(result)
     })
 
+
+  // Watch Later post method
+  app.post('/watchLaterMovies', async(req, res) => {
+    const instructor = req.body;
+    console.log(instructor);
+    const result = await watchLaterMovieCollection.insertOne(instructor);
+    res.send(result);
+  })
+
+
+  // Watch later get method
+  app.get('/watchLaterMovies', async(req, res) => {
+    const result = await watchLaterMovieCollection.find().toArray();
+    res.send(result);
+  })
+
+  app.delete('/watchLaterMovies/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) }
+    const result = await watchLaterMovieCollection.deleteOne(query);
+    res.send(result);
+  })
+
+  // ***********
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
