@@ -363,10 +363,6 @@ async function run() {
 
     //*********** */ blog ********
 
-
-
-    //Blog 
-
     app.get('/blog', async (req, res) => {
       const result = await blogCollection.find().toArray();
       res.send(result)
@@ -386,7 +382,6 @@ async function run() {
 
     })
 
-    
     app.get('/blog/:id', async (req, res) => {
       const id = req.params.id;
       console.log(id, 'no');
@@ -408,7 +403,7 @@ async function run() {
       res.send(result)
     })
 
-    // Subscribe 
+                          ////////// Subscribe ///////////// 
     app.get('/subscribe', async (req, res) => {
       const result = await subscribeCollection.find().toArray();
       res.send(result)
