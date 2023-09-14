@@ -69,6 +69,7 @@ async function run() {
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
     const blogCollection = client.db('flexFlow').collection('blog');
+    const watchLaterMovieCollection = client.db("flexFlow").collection("watchLaterMovies");
 
 
     // -------- jwt ---------
@@ -320,6 +321,28 @@ async function run() {
     const blogItem = req.body;
     const result = await blogCollection.insertOne(blogItem)
     res.send(result)
+  })
+
+  // Watch Later post method
+  app.post('/watchLaterMovies', async(req, res) => {
+    const instructor = req.body;
+    console.log(instructor);
+    const result = await watchLaterMovieCollection.insertOne(instructor);
+    res.send(result);
+  })
+
+
+  // Watch later get method
+  app.get('/watchLaterMovies', async(req, res) => {
+    const result = await watchLaterMovieCollection.find().toArray();
+    res.send(result);
+  })
+
+  app.delete('/watchLaterMovies/:id', async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) }
+    const result = await watchLaterMovieCollection.deleteOne(query);
+    res.send(result);
   })
 
   // ***********
