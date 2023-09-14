@@ -92,9 +92,6 @@ async function run() {
       next();
     }
 
-
-
-
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
 
@@ -211,7 +208,6 @@ async function run() {
       if (region !== 'undefined') {
         query = { "region": region };
       }
-
       const result = await tvSeriesCollection.find(query).toArray();
       res.send(result)
     })
@@ -222,6 +218,14 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/singleTvSeries/:id', async (req, res) => {
+      const id = req.params.id;
+      // console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await tvSeriesCollection.findOne(query);
+      res.send(movie)
+    })
+    
 
 
     //******** payment system implement  *********
@@ -248,6 +252,11 @@ async function run() {
       const result = await paymentCollection.insertOne(payment)
       res.send(result)
 
+    })
+
+    app.get('/payment', async (req, res) => {
+      const result = await paymentCollection.find().toArray();
+      res.send(result)
     })
 
 
