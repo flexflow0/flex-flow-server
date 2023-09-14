@@ -67,8 +67,9 @@ async function run() {
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
-    const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
     const blogCollection = client.db('flexFlow').collection('blog');
+    const subscribeCollection = client.db('flexFlow').collection('subscribe');
+    const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
     const watchLaterMovieCollection = client.db("flexFlow").collection("watchLaterMovies");
 
 
@@ -126,8 +127,24 @@ async function run() {
       res.send(result)
     })
 
+
+    app.patch('/users', async (req, res) => {
+
+      const upData = req.body
+      const query = { email: upData.email }
+      const result = await userCollection.updateOne(query, {
+        $set: {
+          age: upData.age
+        }
+      }, { upsert: true });
+      console.log(result);
+      res.send(result)
+    })
+    //  movies section
+
     // ************** movies section  ***************
     // Get movies
+
     app.get('/movies', async (req, res) => {
       const queries = req.query;
       const region = queries.region;
@@ -138,20 +155,49 @@ async function run() {
       }
       else if (region === 'undefined') {
         query = { "Genres": genre };
-        console.log(query, 1);
+        // console.log(query, 1);
       }
       else if (genre === 'undefined') {
         query = { "region": region };
-        console.log(query, 2);
+        // console.log(query, 2);
       }
       // console.log(query);
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
     })
+
+
+    app.get('/similar_movies', async (req, res) => {
+      const genres = req.query.genres;
+      const arrayOfGenres = genres.split(',');
+      // console.log(genres.split(','));
+      let orQuery = [];
+      arrayOfGenres.forEach(function (genre) {
+        orQuery.push({ "Genres": genre });
+      });
+
+      // Combine the $or queries
+      let query = { $or: orQuery };
+      console.log(query);
+      const options = {
+        projection: {
+          _id: 1,
+          title: 1,
+          type: 1,
+          IMDb_rating: 1,
+          poster: 1
+        },
+      };
+      const movie = await moviesCollection.find(query, options).toArray();
+      res.send(movie)
+    })
+
+
     // Get Single Movies 
+
     app.get('/singleMovie/:id', async (req, res) => {
       const id = req.params.id;
-      console.log(id);
+      // console.log(id);
       const query = { _id: new ObjectId(id) };
       const movie = await moviesCollection.findOne(query);
       res.send(movie)
@@ -303,6 +349,7 @@ async function run() {
       res.send(result)
     })
 
+
     // To Do Masud Rana
 
     app.post('/upcomingmovies', async (req, res) => {
@@ -311,17 +358,61 @@ async function run() {
       res.send(result)
     })
 
-  //*********** */ blog ********
-  app.get('/blog', async (req, res) => {
-    const result = await blogCollection.find().toArray();
-    res.send(result)
-  })
+    //*********** */ blog ********
 
-  app.post('/blog', async(req, res)=>{
-    const blogItem = req.body;
-    const result = await blogCollection.insertOne(blogItem)
-    res.send(result)
-  })
+    app.get('/blog', async (req, res) => {
+      const result = await blogCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/blog', async (req, res) => {
+      const blogItem = req.body;
+      const result = await blogCollection.insertOne(blogItem)
+      res.send(result)
+    })
+
+    app.delete('/blog', async (req, res) => {
+      const id = req.query.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await blogCollection.deleteOne(query);
+      res.send(result)
+
+    })
+
+    app.get('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id, 'no');
+      const filter = {_id: new ObjectId(id)}
+     const result = await blogCollection.findOne(filter)
+      res.send(result)
+    })
+
+    app.patch('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id)}
+      const blogItem = req.body;
+      const updateDoc = {
+        $set: {
+          title:blogItem.title, date:blogItem.date, author:blogItem.author, content:blogItem.content
+        }
+      }
+      const result = await blogCollection.updateOne(filter, updateDoc)
+      res.send(result)
+    })
+
+                          ////////// Subscribe ///////////// 
+    app.get('/subscribe', async (req, res) => {
+      const result = await subscribeCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/subscribe', async (req, res) => {
+      const addEmail = req.body;
+      console.log(addEmail);
+      const result = await subscribeCollection.insertOne(addEmail)
+      res.send(result)
+    })
+
 
   // Watch Later post method
   app.post('/watchLaterMovies', async(req, res) => {
