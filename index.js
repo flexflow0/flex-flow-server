@@ -68,6 +68,13 @@ async function run() {
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
     const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
 
+    const blogCollection = client.db('flexFlow').collection('blog');
+    const subscribeCollection = client.db('flexFlow').collection('subscribe');
+
+    const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
+
+
+
 
     // -------- jwt ---------
 
@@ -133,6 +140,31 @@ async function run() {
       res.send(result)
     })
 
+
+    app.patch('/users', async (req, res) => {
+
+      const upData = req.body
+      const query = { email: upData.email }
+      const result = await userCollection.updateOne(query, {
+        $set: {
+          age: upData.age
+        }
+      }, { upsert: true });
+      console.log(result);
+      res.send(result)
+    })
+    //  movies section
+
+    // ************** movies section  ***************
+    // Get movies
+
+    app.get('/movies', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      const genre = queries.genre;
+      let query = {};
+      if (region === 'undefined' && genre === 'undefined') {
+        query = {};
     // add to like or watchList or favorite
     app.post('/users/lists', async (req, res) => {
       const data = req.body;
@@ -199,6 +231,88 @@ async function run() {
           }
         }
       }
+
+
+    app.get('/similar_movies', async (req, res) => {
+      const genres = req.query.genres;
+      const arrayOfGenres = genres.split(',');
+      // console.log(genres.split(','));
+      let orQuery = [];
+      arrayOfGenres.forEach(function (genre) {
+        orQuery.push({ "Genres": genre });
+      });
+
+      // Combine the $or queries
+      let query = { $or: orQuery };
+      console.log(query);
+      const options = {
+        projection: {
+          _id: 1,
+          title: 1,
+          type: 1,
+          IMDb_rating: 1,
+          poster: 1
+        },
+      };
+      const movie = await moviesCollection.find(query, options).toArray();
+      res.send(movie)
+    })
+
+
+    // Get Single Movies 
+
+    app.get('/singleMovie/:id', async (req, res) => {
+      const id = req.params.id;
+      // console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await moviesCollection.findOne(query);
+      res.send(movie)
+    })
+    // Post Movies
+    app.post('/movies', async (req, res) => {
+      const movie = req.body;
+      const result = await moviesCollection.insertOne(movie);
+      res.send(result)
+    })
+
+    // ************  Tv Series       *******  Masud Rana *******
+
+    app.get('/tvSeries', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      let query = {};
+      if (region !== 'undefined') {
+        query = { "region": region };
+      }
+
+      const result = await tvSeriesCollection.find(query).toArray();
+      res.send(result)
+    })
+
+    app.post('/tvSeries', async (req, res) => {
+      const tvSeries = req.body;
+      const result = await tvSeriesCollection.insertOne(tvSeries)
+      res.send(result)
+    })
+
+
+
+    //******** payment system implement  *********
+    app.post('/create-payment-intent', async (req, res) => {
+      const { price } = req.body;
+      console.log(price);
+      // remove this when original payment is available
+      // const price = Math.floor(Math.random(100) * 100);
+      const amount = price * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ["card"]
+      })
+      // console.log(amount);
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
 
       const result = await userCollection.updateOne(filter, updateDoc, options);
     res.send(result)
@@ -386,6 +500,84 @@ async function run() {
     const result = await upcomingmoviesCollection.find().toArray();
     res.send(result)
   })
+
+
+    // To Do Masud Rana
+
+    app.post('/upcomingmovies', async (req, res) => {
+      const movie = req.body;
+      const result = await userCollection.insertOne(movie);
+      res.send(result)
+    })
+
+    //*********** */ blog ********
+
+
+
+    //Blog 
+
+    app.get('/blog', async (req, res) => {
+      const result = await blogCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/blog', async (req, res) => {
+      const blogItem = req.body;
+      const result = await blogCollection.insertOne(blogItem)
+      res.send(result)
+    })
+
+    app.delete('/blog', async (req, res) => {
+      const id = req.query.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await blogCollection.deleteOne(query);
+      res.send(result)
+
+    })
+
+    
+    app.get('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id, 'no');
+      const filter = {_id: new ObjectId(id)}
+     const result = await blogCollection.findOne(filter)
+      res.send(result)
+    })
+
+    app.patch('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id)}
+      const blogItem = req.body;
+      const updateDoc = {
+        $set: {
+          title:blogItem.title, date:blogItem.date, author:blogItem.author, content:blogItem.content
+        }
+      }
+      const result = await blogCollection.updateOne(filter, updateDoc)
+      res.send(result)
+    })
+
+    // Subscribe 
+    app.get('/subscribe', async (req, res) => {
+      const result = await subscribeCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/subscribe', async (req, res) => {
+      const addEmail = req.body;
+      console.log(addEmail);
+      const result = await subscribeCollection.insertOne(addEmail)
+      res.send(result)
+    })
+
+
+    // Send a ping to confirm a successful connection
+    await client.db("admin").command({ ping: 1 });
+    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+  } finally {
+    // Ensures that the client will close when you finish/error
+    // await client.close();
+  }
 
   // To Do Masud Rana
 
