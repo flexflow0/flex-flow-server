@@ -39,9 +39,9 @@ const stripe = require("stripe")(`${process.env.STRIPE_KEY}`);
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
 
-// const uri = `mongodb://127.0.0.1:27017`;
+const uri = `mongodb://127.0.0.1:27017`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -70,6 +70,7 @@ async function run() {
     const upComingMoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
     const blogCollection = client.db('flexFlow').collection('blog');
+    const watchHistoryCollection = client.db("flexFlow").collection("watch-history")
 
 
     // -------- jwt ---------
@@ -95,17 +96,17 @@ async function run() {
 
 
 
-
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
 
-      if (req.decoded.email !== email) {
-        return res.send({ admin: false })
-      }
-      const query = { email: email };
+      // if (req.decoded.email !== email) {
+      //   return res.status(403).send({ error: true, message: 'forbidden message' })
+      // }
+      const query = { email: email, role: "admin" };
       const user = await userCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' }
-      res.send(result);
+
+      console.log("id", user);
+      res.send(user);
     })
 
     //users
@@ -125,6 +126,23 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result)
     })
+
+    app.patch('/user/update', async (req, res) => {
+      const upData = req.body;
+
+      const query = { email: upData.email }
+      const update = {
+        $set: {
+          age: upData?.age,
+          role: "user", nonSubscribed: true,
+
+        }
+      }
+      const result = await userCollection.updateOne(query, update);
+
+      res.send(result)
+    })
+
 
     //  movies section
     app.get('/movies', async (req, res) => {
@@ -167,12 +185,7 @@ async function run() {
     app.get('/tvSeries', async (req, res) => {
       const queries = req.query;
       const region = queries.region;
-      let query = {};
-      if (region !== 'undefined') {
-        query = { "region": region };
-      }
-
-      const result = await tvSeriesCollection.find(query).toArray();
+      const result = await tvSeriesCollection.find(region ? { "region": region } : {}).toArray();
       res.send(result)
     })
 
@@ -337,6 +350,85 @@ async function run() {
       const result = await blogCollection.insertOne(blogItem)
       res.send(result)
     })
+
+
+    // Atik -> watch History
+    app.get("/watch-history/:email", async (req, res) => {
+      const email = req.params.email;
+      if (email) {
+        const query = { email: email };
+        const finData = await watchHistoryCollection.findOne(query);
+        if (finData.movieID) {
+          const movieIDs = finData?.movieID
+          // Find all movies by their IDs
+          const moviesQuery = { _id: { $in: movieIDs.map(id => new ObjectId(id)) } };
+          const result = await moviesCollection.find(moviesQuery).toArray()
+          res.send(result)
+        }
+      }
+    })
+    // Atik -> watch History
+    app.patch("/watch-history", async (req, res) => {
+      const watchData = req.body;
+      const query = { email: watchData.email };
+      const findData = await watchHistoryCollection.findOne(query);
+      const isMovieIDAvailable = findData && findData.movieID.includes(watchData?.movieID);
+
+      if (watchData.movieID.length > 5) {
+        if (findData) {
+          if (!isMovieIDAvailable) {
+            console.log("if", watchData);
+
+            const upDoc = {
+              $set: {
+                email: watchData?.email,
+                movieID: [watchData?.movieID, ...(findData?.movieID)]
+              }
+            }
+            const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true })
+            console.log(result);
+            res.send(result)
+          } else {
+            console.log("already into watch history");
+
+            if (isMovieIDAvailable) {
+              // Movie is already in the watch history; move it to the top
+              const movieIDIndex = findData.movieID.indexOf(watchData.movieID);
+
+              if (movieIDIndex !== -1) {
+                // Remove the movieID from the current position
+                findData.movieID.splice(movieIDIndex, 1);
+              }
+              // Add it to the beginning of the array
+              findData.movieID.unshift(watchData.movieID);
+
+              const upDoc = {
+                $set: {
+                  email: watchData?.email,
+                  movieID: findData.movieID,
+                },
+              };
+
+              const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true });
+              console.log(result);
+              res.send(result);
+            }
+          }
+        } else {
+          console.log("else", watchData);
+          const docUp = {
+            email: watchData?.email,
+            movieID: [watchData?.movieID]
+
+          }
+          const result = await watchHistoryCollection.insertOne(docUp)
+          console.log(result);
+          res.send(result)
+        }
+      }
+    });
+
+
 
     // ***********
 
