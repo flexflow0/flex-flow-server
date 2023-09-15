@@ -363,6 +363,8 @@ async function run() {
           // Find all movies by their IDs
           const moviesQuery = { _id: { $in: movieIDs.map(id => new ObjectId(id)) } };
           const result = await moviesCollection.find(moviesQuery).toArray()
+          console.log(result);
+
           res.send(result)
         }
       }
