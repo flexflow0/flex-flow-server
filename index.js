@@ -288,7 +288,7 @@ async function run() {
       const query = { _id: { $in: objectIds } };
       console.log(query);
       const result = await moviesCollection.find(query).toArray();
-      res.send(result)
+      res.send(result);
     })
 
     // get similar movies by genres-->
