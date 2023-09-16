@@ -12,7 +12,7 @@ app.use(express.json());
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return res.status(401).send({ error: true, message: 'unauthorization access' });
+    return res.status(401).send({ error: true, message: 'unauthorized access' });
   }
   // bearer token
   const token = authorization.split(' ')[1];
@@ -38,6 +38,7 @@ const stripe = require("stripe")(`${process.env.STRIPE_KEY}`);
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://127.0.0.1:27017`;
@@ -64,10 +65,11 @@ async function run() {
     const moviesCollection = client.db('flexFlow').collection('movies');
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
-    const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    const subscribeCollection = client.db('flexFlow').collection('subscribe');
+    const upComingMoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
     const blogCollection = client.db('flexFlow').collection('blog');
-    const subscribeCollection = client.db('flexFlow').collection('subscribe');
+    const watchHistoryCollection = client.db("flexFlow").collection("watch-history")
 
     // -------- jwt ---------
 
@@ -90,20 +92,21 @@ async function run() {
       next();
     }
 
+
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
 
-      if (req.decoded.email !== email) {
-        return res.send({ admin: false })
-      }
-      const query = { email: email };
+      // if (req.decoded.email !== email) {
+      //   return res.status(403).send({ error: true, message: 'forbidden message' })
+      // }
+      const query = { email: email, role: "admin" };
       const user = await userCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' }
-      res.send(result);
+
+      console.log("id", user);
+      res.send(user);
     })
 
     //users
-    // get all users
     app.get('/users', async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result)
@@ -118,11 +121,12 @@ async function run() {
     })
 
     // post user
+
     app.post('/users', async (req, res) => {
       const user = req.body;
       const query = { email: user.email }
       const existingUser = await userCollection.findOne(query);
-      // console.log(existingUser)
+      console.log(existingUser)
       if (existingUser) {
         return res.send({ message: "user already exists" });
       }
@@ -130,9 +134,8 @@ async function run() {
       res.send(result)
     })
 
-
+    
     app.patch('/users', async (req, res) => {
-
       const upData = req.body
       const query = { email: upData.email }
       const result = await userCollection.updateOne(query, {
@@ -143,72 +146,8 @@ async function run() {
       console.log(result);
       res.send(result)
     })
-    // ************  Tv Series       *******  Masud Rana *******
-
-    app.get('/tvSeries', async (req, res) => {
-      const queries = req.query;
-      const region = queries.region;
-      let query = {};
-      if (region !== 'undefined') {
-        query = { "region": region };
-      }
-
-      const result = await tvSeriesCollection.find(query).toArray();
-      res.send(result)
-    })
-
-    app.post('/tvSeries', async (req, res) => {
-      const tvSeries = req.body;
-      const result = await tvSeriesCollection.insertOne(tvSeries)
-      res.send(result)
-    })
-
-
-
-    //******** payment system implement  *********
-    app.post('/create-payment-intent', async (req, res) => {
-      const { price } = req.body;
-      console.log(price);
-      // remove this when original payment is available
-      // const price = Math.floor(Math.random(100) * 100);
-      const amount = price * 100;
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: 'usd',
-        payment_method_types: ["card"]
-      })
-      // console.log(amount);
-      res.send({
-        clientSecret: paymentIntent.client_secret
-      })
-
-      const result = await userCollection.updateOne(filter, updateDoc, options);
-      res.send(result)
-    })
-
-    //  movies section---------------------------------
-    // get all movies-->
-    app.get('/movies', async (req, res) => {
-      const queries = req.query;
-      const region = queries.region;
-      const genre = queries.genre;
-      let query = {};
-      if (region === 'undefined' && genre === 'undefined') {
-        query = {};
-      }
-      else if (region === 'undefined') {
-        query = { "Genres": genre };
-        // console.log(query, 1);
-      }
-      else if (genre === 'undefined') {
-        query = { "region": region };
-        // console.log(query, 2);
-      }
-      // console.log(query);
-      const result = await moviesCollection.find(query).toArray();
-      res.send(result)
-    })
-
+    
+    // Like, Favorite and watch later add and remove
     // Like, Favorite and watch later add and remove
     app.post('/users/lists', async (req, res) => {
       const data = req.body;
@@ -279,6 +218,30 @@ async function run() {
       const result = await userCollection.updateOne(filter, updateDoc, options);
       res.send(result)
     })
+    
+    
+  
+    //  movies section
+    app.get('/movies', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      const genre = queries.genre;
+      let query = {};
+      if (region === 'undefined' && genre === 'undefined') {
+        query = {};
+      }
+      else if (region === 'undefined') {
+        query = { "Genres": genre };
+        console.log(query, 1);
+      }
+      else if (genre === 'undefined') {
+        query = { "region": region };
+        console.log(query, 2);
+      }
+      // console.log(query);
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.send(result)
+    })
 
     app.get('/lists', async (req, res) => {
       const list = req.query.list;
@@ -317,22 +280,8 @@ async function run() {
       res.send(movie)
     })
 
-    // get single movie details-->
-    app.get('/singleMovie/:id', async (req, res) => {
-      const id = req.params.id;
-      console.log(id);
-      const query = { _id: new ObjectId(id) };
-      const movie = await moviesCollection.findOne(query);
-      res.send(movie)
-    })
-
-    // Post movie-->
-    app.post('/movies', async (req, res) => {
-      const movie = req.body;
-      const result = await userCollection.insertOne(movie);
-      res.send(result)
-    })
-
+    
+    
     // payment system implement
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
@@ -363,7 +312,6 @@ async function run() {
       res.send(result)
 
     })
-
 
     const transactionID = new ObjectId().toString()
     //sslcommerz init
@@ -415,6 +363,7 @@ async function run() {
 
 
     })
+        
     app.post("/payment/success/:transactionID", async (req, res) => {
       const updateQuery = await SSLPaymentQuery.updateOne({ transactionID: req.params.transactionID }, {
         $set: {
@@ -448,14 +397,77 @@ async function run() {
         res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionID}`)
       }
     });
-
-
-    // Upcoming Movies => Masud Rana
-    app.get('/upcomingmovies', async (req, res) => {
-      const result = await upcomingmoviesCollection.find().toArray();
+     
+    // Get Single Movies 
+    app.get('/singleMovie/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await moviesCollection.findOne(query);
+      res.send(movie)
+    })
+    // Post Movies
+    app.post('/movies', async (req, res) => {
+      const movie = req.body;
+      const result = await moviesCollection.insertOne(movie);
       res.send(result)
     })
 
+    // ************  Tv Series       *******  Masud Rana *******
+
+    app.get('/tvSeries', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      const result = await tvSeriesCollection.find(region ? { "region": region } : {}).toArray();
+      res.send(result)
+    })
+    
+    app.get('/singleTvSeries/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const movie = await tvSeriesCollection.findOne(query);
+      res.send(movie)
+    })
+
+    app.post('/tvSeries', async (req, res) => {
+      const tvSeries = req.body;
+      const result = await tvSeriesCollection.insertOne(tvSeries)
+      res.send(result)
+    })
+
+
+
+    //******** payment system implement  *********
+
+    // get user specific payment History
+    app.get("/payment-history", async (req, res) => {
+
+      const query = req.query
+      console.log(query);
+      if (query) {
+        const result = await paymentCollection.find(query).toArray()
+        console.log(result);
+        res.send(result)
+      }
+    })
+
+    
+        
+    app.post("/payment/failed/:transactionId", async (req, res) => {
+      const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId }
+      )
+      if (deleteQuery.deletedCount) {
+        res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionId}`)
+      }
+    });
+
+    //*********** */ blog ********
+
+    // Upcoming Movies => Masud Rana
+    app.get('/upcomingmovies', async (req, res) => {
+      const result = await upComingMoviesCollection.find().toArray();
+      res.send(result)
+    })
 
     // To Do Masud Rana
 
@@ -465,30 +477,8 @@ async function run() {
       res.send(result)
     })
 
+      
     //*********** */ blog ********
-
-    app.post('/upcomingmovies', async (req, res) => {
-      const movie = req.body;
-      const result = await userCollection.insertOne(movie);
-      res.send(result)
-    })
-
-    //*********** blog *** Masud Rana *****
-    app.get('/blog', async (req, res) => {
-      const result = await blogCollection.find().toArray();
-      res.send(result)
-    })
-
-
-    app.post('/blog', async (req, res) => {
-      const blogItem = req.body;
-      const result = await blogCollection.insertOne(blogItem)
-      res.send(result)
-    })
-
-    // ***********
-    //Blog 
-
     app.get('/blog', async (req, res) => {
       const result = await blogCollection.find().toArray();
       res.send(result)
@@ -554,11 +544,91 @@ async function run() {
 
 
 
+    // Atik -> watch History
+    app.get("/watch-history/:email", async (req, res) => {
+      const email = req.params.email;
+      if (email) {
+        const query = { email: email };
+        const finData = await watchHistoryCollection.findOne(query);
+        if (finData.movieID) {
+          const movieIDs = finData?.movieID
+          // Find all movies by their IDs
+          const moviesQuery = { _id: { $in: movieIDs.map(id => new ObjectId(id)) } };
+          const result = await moviesCollection.find(moviesQuery).toArray()
+          res.send(result)
+        }
+      }
+    })
+    // Atik -> watch History
+    app.patch("/watch-history", async (req, res) => {
+      const watchData = req.body;
+      const query = { email: watchData.email };
+      const findData = await watchHistoryCollection.findOne(query);
+      const isMovieIDAvailable = findData && findData.movieID.includes(watchData?.movieID);
+
+      if (watchData.movieID.length > 5) {
+        if (findData) {
+          if (!isMovieIDAvailable) {
+            console.log("if", watchData);
+
+            const upDoc = {
+              $set: {
+                email: watchData?.email,
+                movieID: [watchData?.movieID, ...(findData?.movieID)]
+              }
+            }
+            const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true })
+            console.log(result);
+            res.send(result)
+          } else {
+            console.log("already into watch history");
+
+            if (isMovieIDAvailable) {
+              // Movie is already in the watch history; move it to the top
+              const movieIDIndex = findData.movieID.indexOf(watchData.movieID);
+
+              if (movieIDIndex !== -1) {
+                // Remove the movieID from the current position
+                findData.movieID.splice(movieIDIndex, 1);
+              }
+              // Add it to the beginning of the array
+              findData.movieID.unshift(watchData.movieID);
+
+              const upDoc = {
+                $set: {
+                  email: watchData?.email,
+                  movieID: findData.movieID,
+                },
+              };
+
+              const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true });
+              console.log(result);
+              res.send(result);
+            }
+          }
+        } else {
+          console.log("else", watchData);
+          const docUp = {
+            email: watchData?.email,
+            movieID: [watchData?.movieID]
+
+          }
+          const result = await watchHistoryCollection.insertOne(docUp)
+          console.log(result);
+          res.send(result)
+        }
+      }
+    });
+
+
+
+    // ***********
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  }
-  finally {
+
+  } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
@@ -572,3 +642,4 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`port is running on ${port}`);
 })
+
