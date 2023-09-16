@@ -280,9 +280,9 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/lists', async( req, res) => {
+    app.get('/lists', async (req, res) => {
       const list = req.query.list;
-      
+
       const ids = list.split(',');
       const objectIds = ids.map(id => new ObjectId(id));
       const query = { _id: { $in: objectIds } };
