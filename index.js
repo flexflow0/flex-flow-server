@@ -189,6 +189,15 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/singleTvSeries/:id', async (req, res) => {
+      const id = req.params.id;
+      // console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await tvSeriesCollection.findOne(query);
+      res.send(movie)
+    })
+    
+
     app.post('/tvSeries', async (req, res) => {
       const tvSeries = req.body;
       const result = await tvSeriesCollection.insertOne(tvSeries)
@@ -351,6 +360,47 @@ async function run() {
       res.send(result)
     })
 
+    app.delete('/blog', async (req, res) => {
+      const id = req.query.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await blogCollection.deleteOne(query);
+      res.send(result)
+
+    })
+
+    app.get('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id, 'no');
+      const filter = {_id: new ObjectId(id)}
+     const result = await blogCollection.findOne(filter)
+      res.send(result)
+    })
+
+    app.patch('/blog/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id)}
+      const blogItem = req.body;
+      const updateDoc = {
+        $set: {
+          title:blogItem.title, date:blogItem.date, author:blogItem.author, content:blogItem.content
+        }
+      }
+      const result = await blogCollection.updateOne(filter, updateDoc)
+      res.send(result)
+    })
+
+                          ////////// Subscribe ///////////// 
+    app.get('/subscribe', async (req, res) => {
+      const result = await subscribeCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/subscribe', async (req, res) => {
+      const addEmail = req.body;
+      console.log(addEmail);
+      const result = await subscribeCollection.insertOne(addEmail)
+      res.send(result)
+    })
 
     // Atik -> watch History
     app.get("/watch-history/:email", async (req, res) => {
