@@ -52,9 +52,11 @@ const client = new MongoClient(uri, {
   }
 });
 
+
 const store_id = process.env.StoreID
 const store_passwd = `${process.env.StorePassword}`
 const is_live = false //true for live, false for sandbox
+
 
 async function run() {
   try {
@@ -65,11 +67,12 @@ async function run() {
     const moviesCollection = client.db('flexFlow').collection('movies');
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
-    const subscribeCollection = client.db('flexFlow').collection('subscribe');
     const upComingMoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
     const blogCollection = client.db('flexFlow').collection('blog');
     const watchHistoryCollection = client.db("flexFlow").collection("watch-history")
+
+    const subscribeCollection = client.db('flexFlow').collection('subscribe');
 
     // -------- jwt ---------
 
@@ -93,6 +96,7 @@ async function run() {
     }
 
 
+
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
 
@@ -112,16 +116,6 @@ async function run() {
       res.send(result)
     })
 
-    // get user
-    app.get('/user/:email', async (req, res) => {
-      const email = req.params.email;
-      console.log(email);
-      const result = await userCollection.findOne({ email: email });
-      res.send(result)
-    })
-
-    // post user
-
     app.post('/users', async (req, res) => {
       const user = req.body;
       const query = { email: user.email }
@@ -134,93 +128,23 @@ async function run() {
       res.send(result)
     })
 
-    
-    app.patch('/users', async (req, res) => {
-      const upData = req.body
+    app.patch('/user/update', async (req, res) => {
+      const upData = req.body;
+
       const query = { email: upData.email }
-      const result = await userCollection.updateOne(query, {
+      const update = {
         $set: {
-          age: upData.age
-        }
-      }, { upsert: true });
-      console.log(result);
-      res.send(result)
-    })
-    
-    // Like, Favorite and watch later add and remove
-    // Like, Favorite and watch later add and remove
-    app.post('/users/lists', async (req, res) => {
-      const data = req.body;
-      console.log(data);
-      // const query = { }
-      // const user = await userCollection.findOne(query);
-      const filter = { email: data.email };
-      const options = { upsert: true };
-      let updateDoc = {};
-      // likes
-      if (data.to === 'likes') {
-        // const userFilter = { _id: new ObjectId(data.movieId) };
-        // const userUpdate = { $inc: { likes: 1 } };
-        // console.log(userFilter, userUpdate);
-        // const likeIncreased = await moviesCollection.updateOne(userFilter, userUpdate);
-        if (data.action) {
-          updateDoc = {
-            $push: {
-              likes: new ObjectId(data.id)
-            }
-          }
+          age: upData?.age,
+          role: "user", nonSubscribed: true,
 
         }
-        else {
-          updateDoc = {
-            $pull: {
-              likes: new ObjectId(data.id)
-            }
-          }
-        }
-        console.log(filter, updateDoc);
       }
-      // favorite
-      else if (data.to === 'favorites') {
-        if (data.action) {
-          updateDoc = {
-            $push: {
-              favorites: new ObjectId(data.id)
-            }
-          }
-        }
-        else {
-          updateDoc = {
-            $pull: {
-              favorites: new ObjectId(data.id)
-            }
-          }
-        }
-      }
-      // WatchList
-      else if (data.to === 'WatchList') {
-        if (data.action) {
-          updateDoc = {
-            $push: {
-              WatchList: new ObjectId(data.id)
-            }
-          }
-        }
-        else {
-          updateDoc = {
-            $pull: {
-              WatchList: new ObjectId(data.id)
-            }
-          }
-        }
-      }
-      // console.log(query);
-      const result = await userCollection.updateOne(filter, updateDoc, options);
+      const result = await userCollection.updateOne(query, update);
+
       res.send(result)
     })
-    
-    
-  
+
+
     //  movies section
     app.get('/movies', async (req, res) => {
       const queries = req.query;
@@ -239,50 +163,70 @@ async function run() {
         console.log(query, 2);
       }
       // console.log(query);
-      const result = await userCollection.updateOne(filter, updateDoc, options);
+      const result = await moviesCollection.find(query).toArray();
+      res.send(result)
+    })
+    // Get Single Movies 
+    app.get('/singleMovie/:id', async (req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await moviesCollection.findOne(query);
+      res.send(movie)
+    })
+    // Post Movies
+    app.post('/movies', async (req, res) => {
+      const movie = req.body;
+      const result = await moviesCollection.insertOne(movie);
       res.send(result)
     })
 
-    app.get('/lists', async (req, res) => {
-      const list = req.query.list;
+    // ************  Tv Series       *******  Masud Rana *******
+    // ************  Tv Series       *******  Masud Rana *******
 
-      const ids = list.split(',');
-      const objectIds = ids.map(id => new ObjectId(id));
-      const query = { _id: { $in: objectIds } };
-      console.log(query);
-      const result = await moviesCollection.find(query).toArray();
-      res.send(result);
+    app.get('/tvSeries', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      let query = {};
+      if (region !== 'undefined') {
+        query = { "region": region };
+      }
+
+      const result = await tvSeriesCollection.find(query).toArray();
+      res.send(result)
     })
-
-    // get similar movies by genres-->
-    app.get('/similar_movies', async (req, res) => {
-      const genres = req.query.genres;
-      const arrayOfGenres = genres.split(',');
-      // console.log(genres.split(','));
-      let orQuery = [];
-      arrayOfGenres.forEach(function (genre) {
-        orQuery.push({ "Genres": genre });
-      });
-
-      // Combine the $or queries
-      let query = { $or: orQuery };
-      // console.log(query);
-      const options = {
-        projection: {
-          _id: 1,
-          title: 1,
-          type: 1,
-          IMDb_rating: 1,
-          poster: 1
-        },
-      };
-      const movie = await moviesCollection.find(query, options).toArray();
+    app.get('/singleTvSeries/:id', async (req, res) => {
+      const id = req.params.id;
+      // console.log(id);
+      const query = { _id: new ObjectId(id) };
+      const movie = await tvSeriesCollection.findOne(query);
       res.send(movie)
     })
+    
 
-    
-    
-    // payment system implement
+    app.post('/tvSeries', async (req, res) => {
+      const tvSeries = req.body;
+      const result = await tvSeriesCollection.insertOne(tvSeries)
+      res.send(result)
+    })
+
+
+
+    //******** payment system implement  *********
+
+    // get user specific payment History
+    app.get("/payment-history", async (req, res) => {
+
+      const query = req.query
+      console.log(query);
+      if (query) {
+        const result = await paymentCollection.find(query).toArray()
+        console.log(result);
+        res.send(result)
+      }
+    })
+
+    // payment intent of stripe
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
       console.log(price);
@@ -300,11 +244,6 @@ async function run() {
       })
     })
 
-    //     app.get('/payment', async (req, res) => {
-    //       const result = await paymentCollection.find().toArray();
-    //       res.send(result)
-    //     })
-
     // payment complete data insert
     app.post("/payment-stripe", async (req, res) => {
       const payment = req.body
@@ -313,17 +252,18 @@ async function run() {
 
     })
 
-    const transactionID = new ObjectId().toString()
+
+    const transactionId = new ObjectId().toString()
     //sslcommerz init
     app.post('/ssl-payment', async (req, res) => {
       const paymentInfo = req.body
       const data = {
         total_amount: paymentInfo?.price,
         currency: paymentInfo?.currency,
-        tran_id: transactionID, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success/${transactionID}`,
-        fail_url: `http://localhost:5000/payment/failed/${transactionID}`,
-        cancel_url: `http://localhost:5000/payment/failed/${transactionID}`,
+        tran_id: transactionId, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success/${transactionId}`,
+        fail_url: `http://localhost:5000/payment/failed/${transactionId}`,
+        cancel_url: `http://localhost:5000/payment/failed/${transactionId}`,
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
         product_name: paymentInfo?.plan,
@@ -355,7 +295,7 @@ async function run() {
         res.send({ url: GatewayPageURL })
 
         const finalOrder = {
-          paymentInfo, paidStatus: false, transactionID, paymentMethod: "SSLCommerz"
+          ...paymentInfo, paidStatus: false, transactionId: transactionId, paymentMethod: "SSLCommerz"
         }
         const result = SSLPaymentQuery.insertOne(finalOrder)
         console.log('Redirecting to: ', GatewayPageURL)
@@ -363,25 +303,24 @@ async function run() {
 
 
     })
-        
-    app.post("/payment/success/:transactionID", async (req, res) => {
-      const updateQuery = await SSLPaymentQuery.updateOne({ transactionID: req.params.transactionID }, {
+    app.post("/payment/success/:transactionId", async (req, res) => {
+      const updateQuery = await SSLPaymentQuery.updateOne({ transactionId: req.params.transactionId }, {
         $set: {
           paidStatus: true
         }
       })
       console.log("1", updateQuery);
       if (updateQuery.modifiedCount > 0) {
-        const getPayment = await SSLPaymentQuery.findOne({ transactionID: req.params.transactionID })
+        const getPayment = await SSLPaymentQuery.findOne({ transactionId: req.params.transactionId })
         console.log("2", getPayment);
         if (getPayment) {
           const result = await paymentCollection.insertOne(getPayment)
           console.log("3", result);
           if (result.insertedId) {
-            const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID })
+            const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId })
             console.log("4", removeSSLQ);
             if (removeSSLQ.deletedCount > 0) {
-              res.redirect(`http://localhost:5173/payment/success/${req.params.transactionID}`)
+              res.redirect(`http://localhost:5173/payment/success/${req.params.transactionId}`)
             }
           }
         }
@@ -390,69 +329,6 @@ async function run() {
     });
 
 
-    app.post("/payment/failed/:transactionID", async (req, res) => {
-      const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID }
-      )
-      if (deleteQuery.deletedCount) {
-        res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionID}`)
-      }
-    });
-     
-    // Get Single Movies 
-    app.get('/singleMovie/:id', async (req, res) => {
-      const id = req.params.id;
-      console.log(id);
-      const query = { _id: new ObjectId(id) };
-      const movie = await moviesCollection.findOne(query);
-      res.send(movie)
-    })
-    // Post Movies
-    app.post('/movies', async (req, res) => {
-      const movie = req.body;
-      const result = await moviesCollection.insertOne(movie);
-      res.send(result)
-    })
-
-    // ************  Tv Series       *******  Masud Rana *******
-
-    app.get('/tvSeries', async (req, res) => {
-      const queries = req.query;
-      const region = queries.region;
-      const result = await tvSeriesCollection.find(region ? { "region": region } : {}).toArray();
-      res.send(result)
-    })
-    
-    app.get('/singleTvSeries/:id', async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const movie = await tvSeriesCollection.findOne(query);
-      res.send(movie)
-    })
-
-    app.post('/tvSeries', async (req, res) => {
-      const tvSeries = req.body;
-      const result = await tvSeriesCollection.insertOne(tvSeries)
-      res.send(result)
-    })
-
-
-
-    //******** payment system implement  *********
-
-    // get user specific payment History
-    app.get("/payment-history", async (req, res) => {
-
-      const query = req.query
-      console.log(query);
-      if (query) {
-        const result = await paymentCollection.find(query).toArray()
-        console.log(result);
-        res.send(result)
-      }
-    })
-
-    
-        
     app.post("/payment/failed/:transactionId", async (req, res) => {
       const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId }
       )
@@ -461,7 +337,8 @@ async function run() {
       }
     });
 
-    //*********** */ blog ********
+
+
 
     // Upcoming Movies => Masud Rana
     app.get('/upcomingmovies', async (req, res) => {
@@ -477,7 +354,6 @@ async function run() {
       res.send(result)
     })
 
-      
     //*********** */ blog ********
     app.get('/blog', async (req, res) => {
       const result = await blogCollection.find().toArray();
@@ -489,61 +365,6 @@ async function run() {
       const result = await blogCollection.insertOne(blogItem)
       res.send(result)
     })
-
-
-    app.delete('/blog', async (req, res) => {
-      const id = req.query.id;
-      const query = { _id: new ObjectId(id) }
-      const result = await blogCollection.deleteOne(query);
-      res.send(result)
-
-    })
-
-
-    app.get('/blog/:id', async (req, res) => {
-      const id = req.params.id;
-      console.log(id, 'no');
-      const filter = { _id: new ObjectId(id) }
-      const result = await blogCollection.findOne(filter)
-      res.send(result)
-    })
-
-    app.patch('/blog/:id', async (req, res) => {
-      const id = req.params.id;
-      const filter = { _id: new ObjectId(id) }
-      const blogItem = req.body;
-      const updateDoc = {
-        $set: {
-          title: blogItem.title, date: blogItem.date, author: blogItem.author, content: blogItem.content
-        }
-      }
-      const result = await blogCollection.updateOne(filter, updateDoc)
-      res.send(result)
-    })
-
-    // Subscribe 
-    app.get('/subscribe', async (req, res) => {
-      const result = await subscribeCollection.find().toArray();
-      res.send(result)
-    })
-
-    app.post('/subscribe', async (req, res) => {
-      const addEmail = req.body;
-      console.log(addEmail);
-      const result = await subscribeCollection.insertOne(addEmail)
-      res.send(result)
-    })
-
-
-    // To Do Masud Rana
-
-    // app.post('/upcomingmovies', async (req, res) => {
-    //   const movie = req.body;
-    //   const result = await userCollection.insertOne(movie);
-    //   res.send(result)
-    // })
-
-
 
     // Atik -> watch History
 
@@ -671,12 +492,25 @@ async function run() {
     });
 
 
+     // Subscribe 
+     app.get('/subscribe', async (req, res) => {
+      const result = await subscribeCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/subscribe', async (req, res) => {
+      const addEmail = req.body;
+      console.log(addEmail);
+      const result = await subscribeCollection.insertOne(addEmail)
+      res.send(result)
+    })
+
+
     // ***********
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
