@@ -351,85 +351,130 @@ async function run() {
       res.send(result)
     })
 
-
     // Atik -> watch History
+
     app.get("/watch-history/:email", async (req, res) => {
       const email = req.params.email;
       if (email) {
         const query = { email: email };
         const finData = await watchHistoryCollection.findOne(query);
-        if (finData.movieID) {
-          const movieIDs = finData?.movieID
+        if (finData?.movieHistory) {
+          const movieHistory = finData?.movieHistory;
+
+
+
+          const movieIDs = movieHistory.map(entry => entry.movieID);
+
           // Find all movies by their IDs
           const moviesQuery = { _id: { $in: movieIDs.map(id => new ObjectId(id)) } };
-          const result = await moviesCollection.find(moviesQuery).toArray()
-          console.log(result);
 
-          res.send(result)
-        }
-      }
-    })
-    // Atik -> watch History
-    app.patch("/watch-history", async (req, res) => {
-      const watchData = req.body;
-      const query = { email: watchData.email };
-      const findData = await watchHistoryCollection.findOne(query);
-      const isMovieIDAvailable = findData && findData.movieID.includes(watchData?.movieID);
+          const result = await moviesCollection.find(moviesQuery).toArray();
 
-      if (watchData.movieID.length > 5) {
-        if (findData) {
-          if (!isMovieIDAvailable) {
-            console.log("if", watchData);
-
-            const upDoc = {
-              $set: {
-                email: watchData?.email,
-                movieID: [watchData?.movieID, ...(findData?.movieID)]
-              }
+          // Add the 'index' property to each object that matches the movie ID
+          result.forEach(movie => {
+            const matchingEntry = movieHistory.find(entry => entry.movieID.toString() === movie._id.toString());
+            if (matchingEntry) {
+              movie.index = matchingEntry.index;
             }
-            const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true })
-            console.log(result);
-            res.send(result)
-          } else {
-            console.log("already into watch history");
+          });
 
-            if (isMovieIDAvailable) {
-              // Movie is already in the watch history; move it to the top
-              const movieIDIndex = findData.movieID.indexOf(watchData.movieID);
-
-              if (movieIDIndex !== -1) {
-                // Remove the movieID from the current position
-                findData.movieID.splice(movieIDIndex, 1);
-              }
-              // Add it to the beginning of the array
-              findData.movieID.unshift(watchData.movieID);
-
-              const upDoc = {
-                $set: {
-                  email: watchData?.email,
-                  movieID: findData.movieID,
-                },
-              };
-
-              const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true });
-              console.log(result);
-              res.send(result);
-            }
-          }
-        } else {
-          console.log("else", watchData);
-          const docUp = {
-            email: watchData?.email,
-            movieID: [watchData?.movieID]
-
-          }
-          const result = await watchHistoryCollection.insertOne(docUp)
-          console.log(result);
-          res.send(result)
+          res.send(result);
         }
       }
     });
 
+
+    app.patch("/watch-history", async (req, res) => {
+      const watchData = req.body;
+      const query = { email: watchData.email };
+      const findData = await watchHistoryCollection.findOne(query);
+
+      if (watchData.movieID.length > 5) {
+        if (findData) {
+          const movieHistory = findData.movieHistory || [];
+          const existingEntryIndex = movieHistory.findIndex(entry => entry.movieID === watchData.movieID);
+
+          if (existingEntryIndex !== -1) {
+
+            movieHistory[existingEntryIndex].index = new Date().getTime();
+          } else {
+
+            let newIndex = 1;
+            if (movieHistory.length > 0) {
+              newIndex = movieHistory[movieHistory.length - 1].index + 1;
+            }
+
+            // Add the new movie entry to the end of the watch history with the new index
+            movieHistory.push({ movieID: watchData.movieID, index: newIndex });
+          }
+
+          const upDoc = {
+            $set: {
+              email: watchData.email,
+              movieHistory,
+            }
+          };
+
+          const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true });
+          console.log(result);
+          res.send(result);
+        } else {
+
+          const docUp = {
+            email: watchData.email,
+            movieHistory: [{ movieID: watchData.movieID, index: new Date().getTime() }],
+          };
+
+          const result = await watchHistoryCollection.insertOne(docUp);
+          console.log(result);
+          res.send(result);
+        }
+      }
+    });
+
+    // atik-> delete all History
+    app.patch("/delete-history", async (req, res) => {
+      const email = req.query
+
+      if (email) {
+        const upDoc = {
+          $set: {
+            movieHistory: []
+          }
+        }
+        const result = await watchHistoryCollection.updateOne(email, upDoc)
+        res.send(result)
+        console.log(result);
+      }
+    })
+
+    // atik-> delete History by ID
+
+    app.patch("/delete-historyByID", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      if (data && data.id && data.email) {
+        const query = { email: data.email };
+        const findData = await watchHistoryCollection.findOne(query);
+
+        if (findData) {
+          const updatedHistory = findData.movieHistory.filter(entry => entry.movieID !== data.id);
+
+          const upDoc = {
+            $set: {
+              movieHistory: updatedHistory
+            }
+          };
+
+          const result = await watchHistoryCollection.updateOne(query, upDoc);
+          res.send(result);
+        } else {
+          res.status(404).json({ error: "User not found" });
+        }
+      } else {
+        res.status(400).json({ error: "Invalid request data" });
+      }
+    });
 
 
     // ***********
