@@ -13,7 +13,7 @@ app.use(express.json());
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return res.status(401).send({ error: true, message: 'unauthorized access' });
+    return res.status(401).send({ error: true, message: 'unauthorization access' });
   }
   // bearer token
   const token = authorization.split(' ')[1];
@@ -30,7 +30,6 @@ const verifyJWT = (req, res, next) => {
 
 const stripe = require("stripe")(`${process.env.STRIPE_KEY}`);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
 
 // const uri = `mongodb://127.0.0.1:27017`;
@@ -57,6 +56,7 @@ async function run() {
     const moviesCollection = client.db('flexFlow').collection('movies');
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
+    // const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const subscribeCollection = client.db('flexFlow').collection('subscribe');
     const upComingMoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
@@ -102,6 +102,7 @@ async function run() {
     })
 
     //users
+    // get all users
     app.get('/users', async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result)
@@ -213,15 +214,23 @@ async function run() {
       const queries = req.query;
       const region = queries.region;
       const genre = queries.genre;
-      let query = {};
+      const age = parseInt(queries.age);
+      let ageValidation = "R";
+      if(age < 13){
+        ageValidation = "PG";
+      }
+      else if(age < 18){
+        ageValidation = "PG-13";
+      }
+      let query = { "rating": ageValidation };
       if (region === 'undefined' && genre === 'undefined') {
-        query = {};
+        query = { "rating": ageValidation };
       }
       else if (region === 'undefined') {
-        query = { "Genres": genre };
+        query = { "Genres": genre, "rating": ageValidation };
       }
       else if (genre === 'undefined') {
-        query = { "region": region };
+        query = { "region": region, "rating": ageValidation };
       }
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
@@ -277,9 +286,15 @@ async function run() {
     app.get('/tvSeries', async (req, res) => {
       const queries = req.query;
       const region = queries.region;
-      const result = await tvSeriesCollection.find(region ? { "region": region } : {}).toArray();
+      let query = {};
+      if (region !== 'undefined') {
+        query = { "region": region };
+      }
+
+      const result = await tvSeriesCollection.find(query).toArray();
       res.send(result)
     })
+
 
     app.get('/singleTvSeries/:id', async (req, res) => {
       const id = req.params.id;
@@ -300,8 +315,6 @@ async function run() {
       res.send(result)
     })
 
-    // To Do
-
      // Upcoming Movies => Masud Rana
      app.get('/upcomingmovies', async (req, res) => {
       const result = await upComingMoviesCollection.find().toArray();
@@ -310,7 +323,7 @@ async function run() {
 
     app.post('/upcomingmovies', async (req, res) => {
       const movie = req.body;
-      const result = await userCollection.insertOne(movie);
+      const result = await upComingMoviesCollection.insertOne(movie);
       res.send(result)
     })
 
@@ -328,6 +341,11 @@ async function run() {
         clientSecret: paymentIntent.client_secret
       })
     })
+
+    //     app.get('/payment', async (req, res) => {
+    //       const result = await paymentCollection.find().toArray();
+    //       res.send(result)
+    //     })
 
     // payment complete data insert
     app.post("/payment-stripe", async (req, res) => {
@@ -521,6 +539,29 @@ async function run() {
   });
 
     //*********** */ blog ********
+
+    app.post('/upcomingmovies', async (req, res) => {
+      const movie = req.body;
+      const result = await userCollection.insertOne(movie);
+      res.send(result)
+    })
+
+    //*********** blog *** Masud Rana *****
+    app.get('/blog', async (req, res) => {
+      const result = await blogCollection.find().toArray();
+      res.send(result)
+    })
+
+
+    app.post('/blog', async (req, res) => {
+      const blogItem = req.body;
+      const result = await blogCollection.insertOne(blogItem)
+      res.send(result)
+    })
+
+    // ***********
+    //Blog 
+
     app.get('/blog', async (req, res) => {
       const result = await blogCollection.find().toArray();
       res.send(result)
@@ -539,6 +580,7 @@ async function run() {
       res.send(result)
 
     })
+
 
     app.get('/blog/:id', async (req, res) => {
       const id = req.params.id;
@@ -572,8 +614,6 @@ async function run() {
       res.send(result)
     })
 
-  
-
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -592,4 +632,3 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`port is running on ${port}`);
 })
-
