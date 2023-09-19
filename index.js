@@ -86,11 +86,13 @@ async function run() {
 //  All Users Routes 
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
+
       if (req.decoded.email !== email) {
         res.send({ admin: false })
       }
-      const query = { email: email };
+      const query = { email: email, role: "admin" };
       const user = await userCollection.findOne(query);
+ 
       const result = { admin: user?.role === 'admin' }
       res.send(result);
      
