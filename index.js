@@ -204,15 +204,23 @@ async function run() {
       const queries = req.query;
       const region = queries.region;
       const genre = queries.genre;
-      let query = {};
+      const age = parseInt(queries.age);
+      let ageValidation = "R";
+      if(age < 13){
+        ageValidation = "PG";
+      }
+      else if(age < 18){
+        ageValidation = "PG-13";
+      }
+      let query = { "rating": ageValidation };
       if (region === 'undefined' && genre === 'undefined') {
-        query = {};
+        query = { "rating": ageValidation };
       }
       else if (region === 'undefined') {
-        query = { "Genres": genre };
+        query = { "Genres": genre, "rating": ageValidation };
       }
       else if (genre === 'undefined') {
-        query = { "region": region };
+        query = { "region": region, "rating": ageValidation };
       }
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
