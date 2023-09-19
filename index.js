@@ -96,6 +96,8 @@ async function run() {
       const result = { admin: user?.role === 'admin' }
       res.send(result);
      
+
+
     })
 
     //users
