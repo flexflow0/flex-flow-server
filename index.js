@@ -329,7 +329,8 @@ async function run() {
     // Post movie-->
     app.post('/movies', async (req, res) => {
       const movie = req.body;
-      const result = await userCollection.insertOne(movie);
+      console.log(movie);
+      const result = await moviesCollection.insertOne(movie);
       res.send(result)
     })
 
