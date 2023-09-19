@@ -27,16 +27,7 @@ const verifyJWT = (req, res, next) => {
 
 }
 
-// -----------------------------
-// const decodedEmail = req.decoded.email;
-// if(email !== decodedEmail){
-//   return res.status(403).send({ error: true, message: 'forbidden access' })
-// }
-// --------------------------------
-
 const stripe = require("stripe")(`${process.env.STRIPE_KEY}`);
-
-
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xyvppop.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -64,10 +55,13 @@ async function run() {
     const moviesCollection = client.db('flexFlow').collection('movies');
     const paymentCollection = client.db('flexFlow').collection('payment');
     const SSLPaymentQuery = client.db('flexFlow').collection('SSLPaymentQuery');
-    const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    // const upcomingmoviesCollection = client.db('flexFlow').collection('upcomingMovies');
+    const subscribeCollection = client.db('flexFlow').collection('subscribe');
+    const upComingMoviesCollection = client.db('flexFlow').collection('upcomingMovies');
     const tvSeriesCollection = client.db('flexFlow').collection('tvSeries');
     const blogCollection = client.db('flexFlow').collection('blog');
-    const subscribeCollection = client.db('flexFlow').collection('subscribe');
+    const watchHistoryCollection = client.db("flexFlow").collection("watch-history")
+    const shortVideosCollection = client.db("flexFlow").collection("shortVideos")
 
     // -------- jwt ---------
 
@@ -77,7 +71,6 @@ async function run() {
 
       res.send({ token })
     })
-    // ----------------------------------
 
     // ----------verifyAdmin------------
     const verifyAdmin = async (req, res, next) => {
@@ -90,16 +83,12 @@ async function run() {
       next();
     }
 
+//  All Users Routes 
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
-
-      if (req.decoded.email !== email) {
-        return res.send({ admin: false })
-      }
-      const query = { email: email };
+      const query = { email: email, role: "admin" };
       const user = await userCollection.findOne(query);
-      const result = { admin: user?.role === 'admin' }
-      res.send(result);
+      res.send(user);
     })
 
     //users
@@ -112,7 +101,6 @@ async function run() {
     // get user
     app.get('/user/:email', async (req, res) => {
       const email = req.params.email;
-      console.log(email);
       const result = await userCollection.findOne({ email: email });
       res.send(result)
     })
@@ -122,7 +110,6 @@ async function run() {
       const user = req.body;
       const query = { email: user.email }
       const existingUser = await userCollection.findOne(query);
-      // console.log(existingUser)
       if (existingUser) {
         return res.send({ message: "user already exists" });
       }
@@ -130,9 +117,7 @@ async function run() {
       res.send(result)
     })
 
-
     app.patch('/users', async (req, res) => {
-
       const upData = req.body
       const query = { email: upData.email }
       const result = await userCollection.updateOne(query, {
@@ -140,72 +125,6 @@ async function run() {
           age: upData.age
         }
       }, { upsert: true });
-      console.log(result);
-      res.send(result)
-    })
-    // ************  Tv Series       *******  Masud Rana *******
-
-    app.get('/tvSeries', async (req, res) => {
-      const queries = req.query;
-      const region = queries.region;
-      let query = {};
-      if (region !== 'undefined') {
-        query = { "region": region };
-      }
-
-      const result = await tvSeriesCollection.find(query).toArray();
-      res.send(result)
-    })
-
-    app.post('/tvSeries', async (req, res) => {
-      const tvSeries = req.body;
-      const result = await tvSeriesCollection.insertOne(tvSeries)
-      res.send(result)
-    })
-
-
-
-    //******** payment system implement  *********
-    app.post('/create-payment-intent', async (req, res) => {
-      const { price } = req.body;
-      console.log(price);
-      // remove this when original payment is available
-      // const price = Math.floor(Math.random(100) * 100);
-      const amount = price * 100;
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amount,
-        currency: 'usd',
-        payment_method_types: ["card"]
-      })
-      // console.log(amount);
-      res.send({
-        clientSecret: paymentIntent.client_secret
-      })
-
-      const result = await userCollection.updateOne(filter, updateDoc, options);
-      res.send(result)
-    })
-
-    //  movies section---------------------------------
-    // get all movies-->
-    app.get('/movies', async (req, res) => {
-      const queries = req.query;
-      const region = queries.region;
-      const genre = queries.genre;
-      let query = {};
-      if (region === 'undefined' && genre === 'undefined') {
-        query = {};
-      }
-      else if (region === 'undefined') {
-        query = { "Genres": genre };
-        // console.log(query, 1);
-      }
-      else if (genre === 'undefined') {
-        query = { "region": region };
-        // console.log(query, 2);
-      }
-      // console.log(query);
-      const result = await moviesCollection.find(query).toArray();
       res.send(result)
     })
 
@@ -280,30 +199,35 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/lists', async (req, res) => {
-      const list = req.query.list;
-
-      const ids = list.split(',');
-      const objectIds = ids.map(id => new ObjectId(id));
-      const query = { _id: { $in: objectIds } };
-      console.log(query);
+    //  Movies Section
+    app.get('/movies', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      const genre = queries.genre;
+      let query = {};
+      if (region === 'undefined' && genre === 'undefined') {
+        query = {};
+      }
+      else if (region === 'undefined') {
+        query = { "Genres": genre };
+      }
+      else if (genre === 'undefined') {
+        query = { "region": region };
+      }
       const result = await moviesCollection.find(query).toArray();
-      res.send(result);
+      res.send(result)
     })
 
     // get similar movies by genres-->
     app.get('/similar_movies', async (req, res) => {
       const genres = req.query.genres;
       const arrayOfGenres = genres.split(',');
-      // console.log(genres.split(','));
       let orQuery = [];
       arrayOfGenres.forEach(function (genre) {
         orQuery.push({ "Genres": genre });
       });
-
       // Combine the $or queries
       let query = { $or: orQuery };
-      // console.log(query);
       const options = {
         projection: {
           _id: 1,
@@ -317,36 +241,84 @@ async function run() {
       res.send(movie)
     })
 
-    // get single movie details-->
-    app.get('/singleMovie/:id', async (req, res) => {
+     // Get Single Movies 
+     app.get('/singleMovie/:id', async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const query = { _id: new ObjectId(id) };
       const movie = await moviesCollection.findOne(query);
       res.send(movie)
     })
-
-    // Post movie-->
+    // Post Movies
     app.post('/movies', async (req, res) => {
       const movie = req.body;
-      console.log(movie);
       const result = await moviesCollection.insertOne(movie);
       res.send(result)
     })
 
-    // payment system implement
+    app.get('/lists', async (req, res) => {
+      const list = req.query.list;
+      const ids = list.split(',');
+      const objectIds = ids.map(id => new ObjectId(id));
+      const query = { _id: { $in: objectIds } };
+      const result = await moviesCollection.find(query).toArray();
+      res.send(result);
+    })
+
+    // ************  Tv Series       *******  Masud Rana *******
+    app.get('/tvSeries', async (req, res) => {
+      const queries = req.query;
+      const region = queries.region;
+      let query = {};
+      if (region !== 'undefined') {
+        query = { "region": region };
+      }
+
+      const result = await tvSeriesCollection.find(query).toArray();
+      res.send(result)
+    })
+
+
+    app.get('/singleTvSeries/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const movie = await tvSeriesCollection.findOne(query);
+      res.send(movie)
+    })
+
+    app.post('/tvSeries', async (req, res) => {
+      const tvSeries = req.body;
+      const result = await tvSeriesCollection.insertOne(tvSeries)
+      res.send(result)
+    })
+
+    // ****  Short Videos  Masud Rana ****
+    app.get('/shortVideos', async (req, res) => {
+      const result = await shortVideosCollection.find().toArray()
+      res.send(result)
+    })
+
+     // Upcoming Movies => Masud Rana
+     app.get('/upcomingmovies', async (req, res) => {
+      const result = await upComingMoviesCollection.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/upcomingmovies', async (req, res) => {
+      const movie = req.body;
+      const result = await upComingMoviesCollection.insertOne(movie);
+      res.send(result)
+    })
+
+
+    // *** payment system implement ***
     app.post('/create-payment-intent', async (req, res) => {
       const { price } = req.body;
-      console.log(price);
-      // remove this when original payment is available
-      // const price = Math.floor(Math.random(100) * 100);
       const amount = price * 100;
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
         payment_method_types: ["card"]
       })
-      // console.log(amount);
       res.send({
         clientSecret: paymentIntent.client_secret
       })
@@ -365,9 +337,8 @@ async function run() {
 
     })
 
-
-    const transactionID = new ObjectId().toString()
     //sslcommerz init
+    const transactionID = new ObjectId().toString()
     app.post('/ssl-payment', async (req, res) => {
       const paymentInfo = req.body
       const data = {
@@ -400,71 +371,154 @@ async function run() {
         ship_postcode: 1000,
         ship_country: 'Bangladesh',
       };
-
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
       sslcz.init(data).then(apiResponse => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL
         res.send({ url: GatewayPageURL })
-
         const finalOrder = {
           paymentInfo, paidStatus: false, transactionID, paymentMethod: "SSLCommerz"
         }
         const result = SSLPaymentQuery.insertOne(finalOrder)
-        console.log('Redirecting to: ', GatewayPageURL)
       });
-
-
     })
-    app.post("/payment/success/:transactionID", async (req, res) => {
-      const updateQuery = await SSLPaymentQuery.updateOne({ transactionID: req.params.transactionID }, {
+
+    app.post("/payment/success/:transactionId", async (req, res) => {
+      const updateQuery = await SSLPaymentQuery.updateOne({ transactionId: req.params.transactionId }, {
         $set: {
           paidStatus: true
         }
       })
       console.log("1", updateQuery);
       if (updateQuery.modifiedCount > 0) {
-        const getPayment = await SSLPaymentQuery.findOne({ transactionID: req.params.transactionID })
-        console.log("2", getPayment);
+        const getPayment = await SSLPaymentQuery.findOne({ transactionId: req.params.transactionId })
         if (getPayment) {
           const result = await paymentCollection.insertOne(getPayment)
-          console.log("3", result);
           if (result.insertedId) {
-            const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID })
-            console.log("4", removeSSLQ);
+            const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId })
             if (removeSSLQ.deletedCount > 0) {
-              res.redirect(`http://localhost:5173/payment/success/${req.params.transactionID}`)
+    res.redirect(`http://localhost:5173/payment/success/${req.params.transactionId}`)
             }
           }
         }
       }
-
     });
 
-
-    app.post("/payment/failed/:transactionID", async (req, res) => {
-      const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionID: req.params.transactionID }
+    app.post("/payment/failed/:transactionId", async (req, res) => {
+      const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId }
       )
-      if (deleteQuery.deletedCount) {
-        res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionID}`)
+      if (deleteQuery.deletedCount) { res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionId}`)
       }
     });
 
-
-    // Upcoming Movies => Masud Rana
-    app.get('/upcomingmovies', async (req, res) => {
-      const result = await upcomingmoviesCollection.find().toArray();
-      res.send(result)
+    // get user specific payment History
+    app.get("/payment-history", async (req, res) => {
+      const query = req.query
+      if (query) {
+        const result = await paymentCollection.find(query).toArray()
+        res.send(result)
+      }
     })
 
+    // Atik -> watch History
 
-    // To Do Masud Rana
+  app.get("/watch-history/:email", async (req, res) => {
+    const email = req.params.email;
+    if (email) {
+      const query = { email: email };
+      const finData = await watchHistoryCollection.findOne(query);
+      if (finData?.movieHistory) {
+        const movieHistory = finData?.movieHistory;
+        const movieIDs = movieHistory.map(entry => entry.movieID);
+        const moviesQuery = { _id: { $in: movieIDs.map(id => new ObjectId(id)) } };
+        const result = await moviesCollection.find(moviesQuery).toArray();
+        result.forEach(movie => {
+          const matchingEntry = movieHistory.find(entry => entry.movieID.toString() === movie._id.toString());
+          if (matchingEntry) {
+            movie.index = matchingEntry.index;
+          }
+        });
 
-    app.post('/upcomingmovies', async (req, res) => {
-      const movie = req.body;
-      const result = await userCollection.insertOne(movie);
+        res.send(result);
+      }
+    }
+  });
+
+  app.patch("/watch-history", async (req, res) => {
+    const watchData = req.body;
+    const query = { email: watchData.email };
+    const findData = await watchHistoryCollection.findOne(query);
+    if (findData) {
+      const movieHistory = findData.movieHistory || [];
+      const existingEntryIndex = movieHistory.findIndex(entry => entry.movieID === watchData.movieID);
+      if (existingEntryIndex !== -1) {
+        movieHistory[existingEntryIndex].index = new Date().getTime();
+      } else {
+        let newIndex = 1;
+        if (movieHistory.length > 0) {
+          newIndex = movieHistory[movieHistory.length - 1].index + 1;
+        }
+        movieHistory.push({ movieID: watchData.movieID, index: newIndex });
+      }
+      const upDoc = {
+        $set: {
+          email: watchData.email,
+          movieHistory,
+        }
+      };
+      const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true });
+      console.log(result);
+      res.send(result);
+    } else {
+      const docUp = {
+        email: watchData.email,
+        movieHistory: [{ movieID: watchData.movieID, index: new Date().getTime() }],
+      };
+      const result = await watchHistoryCollection.insertOne(docUp);
+      console.log(result);
+      res.send(result);
+    }
+  });
+
+  // atik-> delete all History
+  app.patch("/delete-history", async (req, res) => {
+    const email = req.query
+    if (email) {
+      const upDoc = {
+        $set: {
+          movieHistory: []
+        }
+      }
+      const result = await watchHistoryCollection.updateOne(email, upDoc)
       res.send(result)
-    })
+      console.log(result);
+    }
+  })
+
+  // atik-> delete History by ID
+  app.patch("/delete-historyByID", async (req, res) => {
+    const data = req.body;
+    if (data && data.id && data.email) {
+      const query = { email: data.email };
+      const findData = await watchHistoryCollection.findOne(query);
+
+      if (findData) {
+        const updatedHistory = findData.movieHistory.filter(entry => entry.movieID !== data.id);
+
+        const upDoc = {
+          $set: {
+            movieHistory: updatedHistory
+          }
+        };
+        const result = await watchHistoryCollection.updateOne(query, upDoc);
+        res.send(result);
+      } else {
+        res.status(404).json({ error: "User not found" });
+      }
+    } else {
+      res.status(400).json({ error: "Invalid request data" });
+    }
+  });
 
     //*********** */ blog ********
 
@@ -512,7 +566,6 @@ async function run() {
 
     app.get('/blog/:id', async (req, res) => {
       const id = req.params.id;
-      console.log(id, 'no');
       const filter = { _id: new ObjectId(id) }
       const result = await blogCollection.findOne(filter)
       res.send(result)
@@ -539,27 +592,15 @@ async function run() {
 
     app.post('/subscribe', async (req, res) => {
       const addEmail = req.body;
-      console.log(addEmail);
       const result = await subscribeCollection.insertOne(addEmail)
       res.send(result)
     })
 
-
-    // To Do Masud Rana
-
-    // app.post('/upcomingmovies', async (req, res) => {
-    //   const movie = req.body;
-    //   const result = await userCollection.insertOne(movie);
-    //   res.send(result)
-    // })
-
-
-
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  }
-  finally {
+
+  } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
