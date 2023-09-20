@@ -83,7 +83,7 @@ async function run() {
       next();
     }
 
-//  All Users Routes 
+    //  All Users Routes 
     app.get('/users/admin/:email', async (req, res) => {
       const email = req.params.email;
       const query = { email: email, role: "admin" };
@@ -205,22 +205,26 @@ async function run() {
       const region = queries.region;
       const genre = queries.genre;
       const age = parseInt(queries.age);
-      let ageValidation = "R";
-      if(age < 13){
-        ageValidation = "PG";
+      let ratingByAge = ["PG", "G"];
+      if (age > 13) {
+        ratingByAge.push("PG-13");
       }
-      else if(age < 18){
-        ageValidation = "PG-13";
+      if (age > 18) {
+        ratingByAge.push("R");
       }
-      let query = { "rating": ageValidation };
+      let ageValidation = [];
+      ratingByAge.forEach(function (rat) {
+        ageValidation.push({ "rating": rat });
+      });
+      let query = { $or: ageValidation };
       if (region === 'undefined' && genre === 'undefined') {
-        query = { "rating": ageValidation };
+        query = { $or: ageValidation };
       }
       else if (region === 'undefined') {
-        query = { "Genres": genre, "rating": ageValidation };
+        query = { "Genres": genre, $or: ageValidation };
       }
       else if (genre === 'undefined') {
-        query = { "region": region, "rating": ageValidation };
+        query = { "region": region, $or: ageValidation };
       }
       const result = await moviesCollection.find(query).toArray();
       res.send(result)
@@ -249,8 +253,8 @@ async function run() {
       res.send(movie)
     })
 
-     // Get Single Movies 
-     app.get('/singleMovie/:id', async (req, res) => {
+    // Get Single Movies 
+    app.get('/singleMovie/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const movie = await moviesCollection.findOne(query);
@@ -265,6 +269,7 @@ async function run() {
 
     app.get('/lists', async (req, res) => {
       const list = req.query.list;
+      console.log(list);
       const ids = list.split(',');
       const objectIds = ids.map(id => new ObjectId(id));
       const query = { _id: { $in: objectIds } };
@@ -305,8 +310,8 @@ async function run() {
       res.send(result)
     })
 
-     // Upcoming Movies => Masud Rana
-     app.get('/upcomingmovies', async (req, res) => {
+    // Upcoming Movies => Masud Rana
+    app.get('/upcomingmovies', async (req, res) => {
       const result = await upComingMoviesCollection.find().toArray();
       res.send(result)
     })
@@ -405,7 +410,7 @@ async function run() {
           if (result.insertedId) {
             const removeSSLQ = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId })
             if (removeSSLQ.deletedCount > 0) {
-    res.redirect(`http://localhost:5173/payment/success/${req.params.transactionId}`)
+              res.redirect(`http://localhost:5173/payment/success/${req.params.transactionId}`)
             }
           }
         }
@@ -415,7 +420,8 @@ async function run() {
     app.post("/payment/failed/:transactionId", async (req, res) => {
       const deleteQuery = await SSLPaymentQuery.deleteOne({ transactionId: req.params.transactionId }
       )
-      if (deleteQuery.deletedCount) { res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionId}`)
+      if (deleteQuery.deletedCount) {
+        res.redirect(`http://localhost:5173/payment/failed/${req.params.transactionId}`)
       }
     });
 
@@ -430,103 +436,103 @@ async function run() {
 
     // Atik -> watch History
 
-  app.get("/watch-history/:email", async (req, res) => {
-    const email = req.params.email;
-    if (email) {
-      const query = { email: email };
-      const finData = await watchHistoryCollection.findOne(query);
-      if (finData?.movieHistory) {
-        const movieHistory = finData?.movieHistory;
-        const movieIDs = movieHistory.map(entry => entry.movieID);
-        const moviesQuery = { _id: { $in: movieIDs.map(id => new ObjectId(id)) } };
-        const result = await moviesCollection.find(moviesQuery).toArray();
-        result.forEach(movie => {
-          const matchingEntry = movieHistory.find(entry => entry.movieID.toString() === movie._id.toString());
-          if (matchingEntry) {
-            movie.index = matchingEntry.index;
-          }
-        });
+    app.get("/watch-history/:email", async (req, res) => {
+      const email = req.params.email;
+      if (email) {
+        const query = { email: email };
+        const finData = await watchHistoryCollection.findOne(query);
+        if (finData?.movieHistory) {
+          const movieHistory = finData?.movieHistory;
+          const movieIDs = movieHistory.map(entry => entry.movieID);
+          const moviesQuery = { _id: { $in: movieIDs.map(id => new ObjectId(id)) } };
+          const result = await moviesCollection.find(moviesQuery).toArray();
+          result.forEach(movie => {
+            const matchingEntry = movieHistory.find(entry => entry.movieID.toString() === movie._id.toString());
+            if (matchingEntry) {
+              movie.index = matchingEntry.index;
+            }
+          });
 
-        res.send(result);
-      }
-    }
-  });
-
-  app.patch("/watch-history", async (req, res) => {
-    const watchData = req.body;
-    const query = { email: watchData.email };
-    const findData = await watchHistoryCollection.findOne(query);
-    if (findData) {
-      const movieHistory = findData.movieHistory || [];
-      const existingEntryIndex = movieHistory.findIndex(entry => entry.movieID === watchData.movieID);
-      if (existingEntryIndex !== -1) {
-        movieHistory[existingEntryIndex].index = new Date().getTime();
-      } else {
-        let newIndex = 1;
-        if (movieHistory.length > 0) {
-          newIndex = movieHistory[movieHistory.length - 1].index + 1;
-        }
-        movieHistory.push({ movieID: watchData.movieID, index: newIndex });
-      }
-      const upDoc = {
-        $set: {
-          email: watchData.email,
-          movieHistory,
-        }
-      };
-      const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true });
-      console.log(result);
-      res.send(result);
-    } else {
-      const docUp = {
-        email: watchData.email,
-        movieHistory: [{ movieID: watchData.movieID, index: new Date().getTime() }],
-      };
-      const result = await watchHistoryCollection.insertOne(docUp);
-      console.log(result);
-      res.send(result);
-    }
-  });
-
-  // atik-> delete all History
-  app.patch("/delete-history", async (req, res) => {
-    const email = req.query
-    if (email) {
-      const upDoc = {
-        $set: {
-          movieHistory: []
+          res.send(result);
         }
       }
-      const result = await watchHistoryCollection.updateOne(email, upDoc)
-      res.send(result)
-      console.log(result);
-    }
-  })
+    });
 
-  // atik-> delete History by ID
-  app.patch("/delete-historyByID", async (req, res) => {
-    const data = req.body;
-    if (data && data.id && data.email) {
-      const query = { email: data.email };
+    app.patch("/watch-history", async (req, res) => {
+      const watchData = req.body;
+      const query = { email: watchData.email };
       const findData = await watchHistoryCollection.findOne(query);
-
       if (findData) {
-        const updatedHistory = findData.movieHistory.filter(entry => entry.movieID !== data.id);
-
+        const movieHistory = findData.movieHistory || [];
+        const existingEntryIndex = movieHistory.findIndex(entry => entry.movieID === watchData.movieID);
+        if (existingEntryIndex !== -1) {
+          movieHistory[existingEntryIndex].index = new Date().getTime();
+        } else {
+          let newIndex = 1;
+          if (movieHistory.length > 0) {
+            newIndex = movieHistory[movieHistory.length - 1].index + 1;
+          }
+          movieHistory.push({ movieID: watchData.movieID, index: newIndex });
+        }
         const upDoc = {
           $set: {
-            movieHistory: updatedHistory
+            email: watchData.email,
+            movieHistory,
           }
         };
-        const result = await watchHistoryCollection.updateOne(query, upDoc);
+        const result = await watchHistoryCollection.updateOne(query, upDoc, { upsert: true });
+        console.log(result);
         res.send(result);
       } else {
-        res.status(404).json({ error: "User not found" });
+        const docUp = {
+          email: watchData.email,
+          movieHistory: [{ movieID: watchData.movieID, index: new Date().getTime() }],
+        };
+        const result = await watchHistoryCollection.insertOne(docUp);
+        console.log(result);
+        res.send(result);
       }
-    } else {
-      res.status(400).json({ error: "Invalid request data" });
-    }
-  });
+    });
+
+    // atik-> delete all History
+    app.patch("/delete-history", async (req, res) => {
+      const email = req.query
+      if (email) {
+        const upDoc = {
+          $set: {
+            movieHistory: []
+          }
+        }
+        const result = await watchHistoryCollection.updateOne(email, upDoc)
+        res.send(result)
+        console.log(result);
+      }
+    })
+
+    // atik-> delete History by ID
+    app.patch("/delete-historyByID", async (req, res) => {
+      const data = req.body;
+      if (data && data.id && data.email) {
+        const query = { email: data.email };
+        const findData = await watchHistoryCollection.findOne(query);
+
+        if (findData) {
+          const updatedHistory = findData.movieHistory.filter(entry => entry.movieID !== data.id);
+
+          const upDoc = {
+            $set: {
+              movieHistory: updatedHistory
+            }
+          };
+          const result = await watchHistoryCollection.updateOne(query, upDoc);
+          res.send(result);
+        } else {
+          res.status(404).json({ error: "User not found" });
+        }
+      } else {
+        res.status(400).json({ error: "Invalid request data" });
+      }
+    });
 
     //*********** */ blog ********
 
