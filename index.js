@@ -320,6 +320,7 @@ async function run() {
       res.send(result)
     })
 
+
     // Upcoming Movies => Masud Rana
     app.get('/upcomingmovies', async (req, res) => {
       const result = await upComingMoviesCollection.find().toArray();
@@ -361,16 +362,16 @@ async function run() {
     })
 
     //sslcommerz init
-    const transactionID = new ObjectId().toString()
+    const transactionId = new ObjectId().toString()
     app.post('/ssl-payment', async (req, res) => {
       const paymentInfo = req.body
       const data = {
         total_amount: paymentInfo?.price,
         currency: paymentInfo?.currency,
-        tran_id: transactionID, // use unique tran_id for each api call
-        success_url: `http://localhost:5000/payment/success/${transactionID}`,
-        fail_url: `http://localhost:5000/payment/failed/${transactionID}`,
-        cancel_url: `http://localhost:5000/payment/failed/${transactionID}`,
+        tran_id: transactionId, // use unique tran_id for each api call
+        success_url: `http://localhost:5000/payment/success/${transactionId}`,
+        fail_url: `http://localhost:5000/payment/failed/${transactionId}`,
+        cancel_url: `http://localhost:5000/payment/failed/${transactionId}`,
         ipn_url: 'http://localhost:3030/ipn',
         shipping_method: 'Courier',
         product_name: paymentInfo?.plan,
@@ -395,14 +396,15 @@ async function run() {
         ship_country: 'Bangladesh',
       };
       const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live)
-      sslcz.init(data).then(apiResponse => {
+      sslcz.init(data).then(async (apiResponse) => {
         // Redirect the user to payment gateway
         let GatewayPageURL = apiResponse.GatewayPageURL
         res.send({ url: GatewayPageURL })
         const finalOrder = {
-          paymentInfo, paidStatus: false, transactionID, paymentMethod: "SSLCommerz"
+          ...paymentInfo, paidStatus: false, transactionId, paymentMethod: "SSLCommerz"
         }
-        const result = SSLPaymentQuery.insertOne(finalOrder)
+        const result = await SSLPaymentQuery.insertOne(finalOrder)
+        console.log(result);
       });
     })
 
@@ -412,7 +414,6 @@ async function run() {
           paidStatus: true
         }
       })
-      console.log("1", updateQuery);
       if (updateQuery.modifiedCount > 0) {
         const getPayment = await SSLPaymentQuery.findOne({ transactionId: req.params.transactionId })
         if (getPayment) {
@@ -435,14 +436,19 @@ async function run() {
       }
     });
 
-    // get user specific payment History
+
+    // All Payment History
     app.get("/payment-history", async (req, res) => {
       const query = req.query
+      console.log(query);
       if (query) {
         const result = await paymentCollection.find(query).toArray()
+        console.log(result);
         res.send(result)
       }
     })
+
+
 
     // Atik -> watch History
 
@@ -620,6 +626,7 @@ async function run() {
       res.send(result)
     })
 
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -637,4 +644,5 @@ app.get('/', (req, res) => {
 
 app.listen(port, () => {
   console.log(`port is running on ${port}`);
+
 })
