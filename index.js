@@ -205,6 +205,7 @@ async function run() {
       const region = queries.region;
       const genre = queries.genre;
       const age = parseInt(queries.age);
+      console.log(region, genre, age);
       let ratingByAge = ["PG", "G"];
       if (age > 13) {
         ratingByAge.push("PG-13");
